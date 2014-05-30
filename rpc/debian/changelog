@@ -1,0 +1,6 @@
+szn-picturedetector-rpc (0.1.0) Seznam; urgency=low
+
+  * bootstrapped using szn-bootstrap
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Fri, 30 May 2014 07:53:35 +0200
+

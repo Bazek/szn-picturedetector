@@ -1,0 +1,55 @@
+#
+# DESCRIPTION
+#
+# PROJECT
+#
+# AUTHOR            Petr Bartunek <Petr.Bartunek@firma.seznam.cz>
+#
+# Copyright (C) Seznam.cz a.s. 2014
+# All Rights Reserved
+
+
+# initialize autoconf
+AC_INIT(m4_esyscmd(/www/debhelper/bin/szn-getpackageinfo))
+AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_SRCDIR([src/rpc.cc])
+AC_CONFIG_MACRO_DIR([build-aux/m4])
+
+# we are module -- don't want to have static library
+AC_DISABLE_STATIC
+
+SZN_INIT
+AC_PROG_LIBTOOL
+
+SET_FRPC_PROTOCOL_VERSION
+
+# Find metaserver
+FIND_METASERVER_FASTRPC
+
+AC_LANG_CPLUSPLUS
+AC_CHECK_HEADER(dbglog.h,,AC_MSG_ERROR(dbglog.h not found))
+AC_CHECK_LIB(dbglog,__dbglog,,AC_MSG_ERROR(__dbglog not found in dbglog))
+
+# cfgparser
+AC_CHECK_HEADER(cfgparser.h,,AC_MSG_ERROR(cfgparser.h not found))
+AC_CHECK_LIB(cfgparser, cfgparser_dummy,,AC_MSG_ERROR(cfgparser_dummy not found in cfgparser))
+
+# fast rpc
+AC_LANG_CPLUSPLUS
+AC_CHECK_HEADER(frpc.h,,AC_MSG_ERROR(frpc.h not found))
+AC_CHECK_LIB(fastrpc, dummyFastRPC,,AC_MSG_ERROR(dummyFastRPC not found in fastrpc))
+
+# sql wrapper
+AC_LANG_CPLUSPLUS
+AC_CHECK_HEADER(sqlwrapper/sqlwrapper.h,,AC_MSG_ERROR(sqlwrapper/sqlwrapper.h not found))
+AC_CHECK_LIB(sqlwrapper, lib_sqlwrapper_present,,AC_MSG_ERROR(lib_sqlwrapper_present not found in sqlwrapper))
+
+AC_SUBST(CXXEXTRAFLAGS)
+
+# Write config.status and the Makefile
+AC_CONFIG_FILES([
+    Makefile
+    src/Makefile
+])
+
+AC_OUTPUT

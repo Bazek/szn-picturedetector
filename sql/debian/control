@@ -1,0 +1,16 @@
+Source: szn-picturedetector-sql
+Section: picturedetector/Seznam
+Priority: optional
+Maintainer: Petr Bartunek <petr.bartunek@firma.seznam.cz>
+Build-Depends: szn-debhelper
+Standards-Version: 3.7.2.2
+
+Package: szn-picturedetector-sql
+Architecture: all
+Section: picturedetector/Seznam
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Bootstrapped package sql
+ This is a newly bootstrapped package for sql.
+ .
+ If this description appears in repository, something went wrong. Please
+ contact the package's maintainer.

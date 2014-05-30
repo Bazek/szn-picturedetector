@@ -1,0 +1,17 @@
+skeleton.test.method
+    skeleton.test.method()
+
+Popis:
+    Vrati nahodne cislo
+
+Parametry:
+
+Vraci:
+    struct {
+        int status              Vysledek operace (200 = OK, ...)
+        string statusMessage    Textovy popis vysledku operace
+
+        int number              Nahodne cislo
+    }
+.
+

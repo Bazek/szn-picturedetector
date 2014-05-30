@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#
+# FILE             $Id$
+#
+# DESCRIPTION      Postrm script for szn-picturedetector-sql
+#
+# AUTHOR           Petr Bartunek <petr.bartunek@firma.seznam.cz>
+#
+# Copyright (c) 2014 Seznam.cz, a.s.
+# All rights reserved.
+#
