@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+
+### BEGIN INIT INFO
+# Provides:          szn-picturedetector-backend
+# Required-Start:    $local_fs $network
+# Required-Stop:     $local_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start szn-picturedetector-backend at boot time
+# Description:       Enable service provided by picturedetector-backend
+# ### END INIT INFO
+
+
+##################################################
+# configuration section                          #
+##################################################
+
+SERVICE_ROOT=/www/picturedetector/backend
+PROG=${SERVICE_ROOT}/bin/szn-picturedetector-backend
+CONF=${SERVICE_ROOT}/conf/backend.conf
+STOP_TIMEOUT=10
+NICE=0
+RANDOM_SLEEP=120
+PIDFILE=${SERVICE_ROOT}/run/backend.pid
+
+export LOG_FILE=$SERVICE_ROOT/log/szn-picturedetector-backend-dbg_log
+
+#nastaveni ulimitu
+MAX_PROCESS=5000
+MAX_DATA_SEGM=
+MAX_LOCK_MEM=
+MAX_RESIDENT_MEM=51200
+MAX_STACK=
+MAX_VIRTUAL_MEM=204800
+MAX_FILES=1024
+
+#jaky signal se bude posilat procesu pro reload (apache USR1, ostatni HUP)
+RELOAD_SIGNAL=HUP
+
+#pripona/pripony za jmenem sluzby v lvs
+LVS_SUFFIX=""
+#cas po ktery se ceka nez je sluzba povazovana za shozenou
+LVS_STOP_SLEEP=10
+#ip lvska, pokud neni vyplneno pouzije se default gw
+LVS_IP=""
+
+#nahodny sleep pred zarotovanim logu
+RANDOM_SLEEP=30
+
+##################################################
+
+__standard-init__
+
+exit $?
+

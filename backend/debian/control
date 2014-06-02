@@ -1,0 +1,14 @@
+Source: szn-picturedetector-backend
+Section: picturedetector/Seznam
+Priority: optional
+Maintainer: Petr Bartunek <petr.bartunek@firma.seznam.cz>
+Build-Depends: szn-debhelper
+Standards-Version: 3.7.2.2
+
+Package: szn-picturedetector-backend
+Architecture: all
+Section: picturedetector/Seznam
+Depends: ${shlibs:Depends}, ${misc:Depends}, python, python-dbglog, python-mysqldb, python-fastrpc, python-crypto,
+    szn-python-mysqldbwrapper, szn-metaserver-python-fastrpc, szn-rpc-backbone, szn-python-utils, szn-logy
+Description: Backend Server for picturedetector
+ .

@@ -1,0 +1,7 @@
+#!/usr/bin/make -f
+
+DEB_CONFIGURE_USER_FLAGS := \
+    --prefix=/www/picturedetector/backend  $(DEB_CONFIGURE_USER_FLAGS)
+
+# Standard Seznam debhelper's script
+include /www/debhelper/rules/szn-debhelper.mk

@@ -1,0 +1,16 @@
+/www/picturedetector/backend/log/szn-picturedetector-backend-dbg_log
+{
+    maxage 7
+
+    compress
+    daily
+    dateext
+    delaycompress
+    missingok
+    rotate 999
+
+    sharedscripts
+    postrotate
+        /etc/init.d/szn-picturedetector-backend logrotate
+    endscript
+}

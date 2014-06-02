@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -e
+
+# make logs accessible through HTTP
+/www/debhelper/prepare/szn-logy szn-picturedetector-backend picturedetector/backend

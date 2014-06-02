@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# User values
+USER_NAME=picturedetector
+USER_GROUP=picturedetector
+USER_SHELL=/bin/false
+USER_HOMEDIR=/www/picturedetector
+USER_COMMENT="Unprivileged user for picturedetector"
+
+# Source of getent
+. /usr/share/debconf/confmodule
+
+case "$1" in
+
+configure)
+    __create-user__
+    chown $USER_NAME:$USER_GROUP /www/picturedetector/backend/log
+    chown $USER_NAME:$USER_GROUP /www/picturedetector/backend/run
+
+    # Set init script
+    #update-rc.d szn-picturedetector-backend defaults 80 20
+    ;;
+abort-upgrade)
+    # Nop
+    ;;
+abort-remove)
+    # Nop
+    ;;
+abort-deconfigure)
+    # Nop
+    ;;
+
+esac
+
