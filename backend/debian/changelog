@@ -1,3 +1,12 @@
+szn-picturedetector-backend (0.1.1) Seznam; urgency=low
+
+  * Pridani testovacich metod:
+  *   neural_network.add
+  *   neural_network.get
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Fri, 30 May 2014 07:53:35 +0200
+
+
 szn-picturedetector-backend (0.1.0) Seznam; urgency=low
 
   * bootstrapped using szn-bootstrap
