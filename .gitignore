@@ -19,3 +19,10 @@
 *.exe
 *.out
 *.app
+
+# Build soubory a balicky budou ignorovany
+*/debian/pkg
+*/debian/build
+*.pyc
+*.pyo
+*.swp

@@ -17,7 +17,6 @@ class NeuralNetworkBackend(Backend):
     """
 
     @rpcStatusDecorator('neural_network.function', 'S:,S:b')
-    @MySQL_slave
     def function(self, param=True):
         """
         Testovaci funkce

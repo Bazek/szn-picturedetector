@@ -1,3 +1,10 @@
+szn-picturedetector-backend (0.1.2) Seznam; urgency=low
+
+  * Testovaci metoda nepotrebuje pripojeni k MySQL
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 2 May 2014 11:58:45 +0200
+
+
 szn-picturedetector-backend (0.1.1) Seznam; urgency=low
 
   * Pridani testovacich metod:
