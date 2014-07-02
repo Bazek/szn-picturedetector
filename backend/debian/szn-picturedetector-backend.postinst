@@ -16,6 +16,7 @@ configure)
     __create-user__
     chown $USER_NAME:$USER_GROUP /www/picturedetector/backend/log
     chown $USER_NAME:$USER_GROUP /www/picturedetector/backend/run
+    chown $USER_NAME:$USER_GROUP /www/picturedetector/backend/data
 
     # Set init script
     #update-rc.d szn-picturedetector-backend defaults 80 20

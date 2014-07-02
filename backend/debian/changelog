@@ -1,3 +1,11 @@
+szn-picturedetector-backend (0.1.3) Seznam; urgency=low
+
+  * Nova metoda pro ulozeni souboru s obrazkem
+  * Konfigurace slozek s obrazky  
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 2 May 2014 15:23:23 +0200
+
+
 szn-picturedetector-backend (0.1.2) Seznam; urgency=low
 
   * Testovaci metoda nepotrebuje pripojeni k MySQL

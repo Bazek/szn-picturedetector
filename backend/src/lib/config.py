@@ -16,6 +16,21 @@ class Config(BaseConfig):
         super(Config, self).__init__(configFile, passwdFile)
 
         self.some_section = SomeConfig(self.parser)
+        self.pictures = PicturesConfig(self.parser)
+    #enddef
+#endclass
+
+
+class PicturesConfig(object):
+    """ Parse pictures section """
+    def __init__(self, parser, section='pictures'):
+        self.base_path = parser.get(section, 'BasePath')
+        self.learning_set_paths = {
+            "training-true":    parser.get(section, 'TrainingTruePath'),
+            "training-false":   parser.get(section, 'TrainingFalsePath'),
+            "validation":       parser.get(section, 'ValidationPath'),
+            "testing":          parser.get(section, 'TestingPath'),
+        }
     #enddef
 #endclass
 
