@@ -11,7 +11,7 @@ from szn_utils.configutils import DatetimeBuilder
 from lib.config import Config
 from lib.backend import Backend
 from neural_network import NeuralNetworkBackend
-from picture import PictureBackend
+from picture import PictureSetBackend, PictureBackend
 
 
 def init(cfg):
@@ -26,6 +26,7 @@ def init(cfg):
     server.globals.rpcObjects = {
         'backend': Backend(server),
         'neural_network': NeuralNetworkBackend(server),
+        'picture_set': PictureSetBackend(server),
         'picture': PictureBackend(server),
     }
     # Monitorovaci metoda

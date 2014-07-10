@@ -1,7 +1,20 @@
+szn-picturedetector-backend (0.2.0) Seznam; urgency=low
+
+  * Nove metody pro praci s obrazky a obrazkovymi sady:
+  *   picture.list (int)
+  *   picture.list (int, struct)
+  *   picture.save (int, string, binary)
+  *   picture_set.add (struct)
+  *   picture_set.delete (int)
+  *   picture_set.list ()  
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 2 May 2014 15:23:23 +0200
+
+
 szn-picturedetector-backend (0.1.3) Seznam; urgency=low
 
   * Nova metoda pro ulozeni souboru s obrazkem
-  * Konfigurace slozek s obrazky  
+  * Konfigurace slozek s obrazky
 
  -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 2 May 2014 15:23:23 +0200
 

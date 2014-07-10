@@ -22,6 +22,29 @@ class Backend(object):
         self.config = server.globals.config
     #enddef
 
+    def _getFilter(self, filterDict, valuesDict, prefix="WHERE", separator=" AND ", empty=True):
+        """ Pomocna funkce pro sestavovani klauzuli pomoci parametru """
+        values = []
+        for key, val in valuesDict.items():
+            if key in filterDict:
+                value = filterDict[key]
+                values.append(value)
+            else:
+                status, statusMessage = 300, "Unknown value %s" % key
+                raise BackendException(status, statusMessage)
+            #endif
+        #endfor
+
+        FILTER = separator.join(values)
+        if not FILTER and not empty:
+            status, statusMessage = 300, "No data"
+            raise BackendException(status, statusMessage)
+        elif FILTER:
+            FILTER = "%s %s" % (prefix, FILTER)
+        #endif
+        return FILTER
+    #enddef
+
     def get_scheme(self):
         header = self.server.getInHeadersFor('X-Scheme')
         dbg.log('Header: %s', header, DBG=1)
