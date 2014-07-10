@@ -194,7 +194,7 @@ class PictureBackend(Backend):
             SELECT `id`, `picture_set_id`, `learning_set`, `hash`
             FROM picture
             """ + WHERE + """
-           ORDER BY id ASC
+            ORDER BY id ASC
         """
         self.cursor.execute(query, params)
         picture_sets = self.cursor.fetchall()
