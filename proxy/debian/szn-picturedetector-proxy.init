@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+#
+### BEGIN INIT INFO
+# Provides:          szn-picturedetector-proxy
+# Required-Start:    $local_fs $network
+# Required-Stop:     $local_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: starts szn-picturedetector-proxy
+# Description:       starts szn-picturedetector-proxy
+### END INIT INFO
+
+##################################################
+PROG="/www/picturedetector/proxy/bin/picturedetector-proxy"
+CONF="/www/picturedetector/proxy/conf/proxy.conf"
+PIDFILE="/www/picturedetector/proxy/run/szn-picturedetector-proxy.pid"
+STOP_TIMEOUT=20
+TMPDIR=/tmp
+export TMPDIR
+
+MAX_DATA_SEGM=unlimited
+MAX_LOCK_MEM=unlimited
+MAX_RESIDENT_MEM=unlimited
+MAX_STACK=unlimited
+MAX_VIRTUAL_MEM=unlimited
+MAX_OPEN_FILES=100
+
+RANDOM_SLEEP=120
+
+NAME=`/usr/bin/basename ${PROG}`
+
+# Test if required files exist
+if [ ! -x ${PROG} -o ! -s ${CONF} ]
+then
+        [ -x ${PROG} ] || echo "${PROG} does not exist or is not executable!"
+        [ -s ${CONF} ] || echo "${CONF} does not exist or is empty!"
+        exit 1
+fi
+
+# Main loop
+case "$1" in
+        start)
+                echo -n "Starting ${NAME}: "
+                start-stop-daemon --start --quiet --pidfile $PIDFILE \
+                    --exec $PROG -- -c $CONF || true
+                echo "$NAME."
+                ;;
+
+        stop)
+                echo -n "Stopping ${NAME}: "
+                start-stop-daemon --stop --quiet --pidfile $PIDFILE \
+                    --exec $PROG || true
+                echo "$NAME."
+                ;;
+
+        restart)
+                ${0} stop
+                /bin/sleep 1
+                ${0} start
+                ;;
+
+        safe-restart)
+                ${0} stop
+                ${0} start
+                ;;
+
+        randsleep)
+                # random sleep
+                number=$RANDOM
+                let "number %= $RANDOM_SLEEP"
+                sleep $number
+                ;;
+
+        upgrade)
+                echo -n "Upgrading ${NAME} binary: "
+                start-stop-daemon --stop --signal USR2 --quiet --pidfile $PIDFILE \
+                    --exec $PROG || true
+                echo "Starting new binary process."
+                sleep 1
+                echo -n "Upgrading ${NAME} binary: "
+                kill -WINCH `cat ${PIDFILE}.oldbin`
+                echo "Gracefully shutdown old binary childs."
+                sleep 1
+                echo -n "Upgrading ${NAME} binary: "
+                start-stop-daemon --stop --signal QUIT --quiet --pidfile ${PIDFILE}.oldbin \
+                    --exec $PROG || true
+                echo -e "Killed old binary master.\nDone."
+                ;;
+
+        reload)
+                echo -n "Reloading ${NAME}: "
+                start-stop-daemon --stop --signal HUP --quiet --pidfile $PIDFILE \
+                    --exec $PROG || true
+                echo "$NAME."
+                ;;
+
+        logrotate)
+                echo -n "Reloading ${NAME}: "
+                start-stop-daemon --stop --signal USR1 --quiet --pidfile $PIDFILE \
+                    --exec $PROG || true
+                echo "$NAME."
+                ;;
+
+        status)
+                if [ -e "$PIDFILE" ]
+                then
+                        if ps `cat $PIDFILE` >/dev/null 2>&1
+                        then
+                            echo "${NAME} is running on: $(ps -s `cat $PIDFILE` | awk '/[0-9]+/{printf("%d ", $1)}')"
+                            exit 1
+                        else
+                            echo "${NAME} is not running (but pidfile exists)"
+                            exit 0
+                        fi
+                else
+                    echo "${NAME} is not running (pidfile doesn't exist)"
+                    exit 0
+                fi
+                ;;
+
+        *)
+                echo "Usage: ${0} {start|stop|reload|logrotate|upgrade|restart|status}"
+                ;;
+esac
+
+exit 0
+

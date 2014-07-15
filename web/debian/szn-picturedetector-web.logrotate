@@ -1,0 +1,14 @@
+/www/picturedetector/web/log/picturedetector-web-dbg_log
+/www/picturedetector/web/log/web-uwsgi_log {
+    daily
+    rotate 999
+    maxage 7
+    dateext
+    compress
+    delaycompress
+    missingok
+    sharedscripts
+    postrotate
+         invoke-rc.d szn-picturedetector-web logrotate 1>/dev/null 2>/dev/null
+    endscript
+}

@@ -1,0 +1,4 @@
+conf/*.conf /www/picturedetector/web/conf/
+src/* /www/picturedetector/web/server/
+templ/* /www/picturedetector/web/templ/
+static/* /www/picturedetector/web/static/

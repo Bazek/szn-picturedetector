@@ -1,0 +1,6 @@
+szn-picturedetector-proxy (0.1.0) Seznam; urgency=low
+
+  * Proxy server initial version
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Fri, 11 Jul 2014 15:59:19 +0100
+

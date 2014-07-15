@@ -1,0 +1,29 @@
+<?teng set .menu = 'picture'?>
+<?teng include file='common/__head.html'?>
+
+<div id="picture-set_list">
+    <table class="pure-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Popis</th>
+                <th>Trénovací sady</th>
+                <th>Akce</th>
+        </thead>
+        <tbody>
+            <?teng frag picture_sets ?>
+                <tr>
+                    <td>#${id}</td>
+                    <td>${description}</td>
+                    <td></td>
+                    <td>
+                        <a href="/picture-set/edit/${id}" class="pure-button pure-button-xsmall">Upravit</a>
+                        <a href="/picture-set/delete/${id}" class="pure-button pure-button-error pure-button-xsmall" onclick="return confirm('Opravdu chcete smazat tuto položku?')">Smazat</a>
+                    </td>
+                </tr>
+            <?teng endfrag ?>
+        </tbody>
+    </table>
+</div>
+
+<?teng include file='common/__foot.html'?>

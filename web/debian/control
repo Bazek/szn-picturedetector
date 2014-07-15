@@ -1,0 +1,16 @@
+Source: szn-picturedetector-web
+Section: picturedetector/Seznam
+Priority: optional
+Maintainer: Petr Bartunek <petr.bartunek@firma.seznam.cz>
+Build-Depends: szn-debhelper
+Standards-Version: 3.7.2.2
+
+Package: szn-picturedetector-web
+Architecture: any
+Section: homepage/Seznam
+Depends: ${shlibs:Depends}, ${misc:Depends}, szn-uwsgi, szn-wsgi-publisher, python-teng, python-dbglog, szn-python-flask
+Description: Bootstrapped package web
+ This is a newly bootstrapped package for szn-picturedetector-web.
+ .
+ If this description appears in repository, something went wrong. Please
+ contact the package's maintainer.

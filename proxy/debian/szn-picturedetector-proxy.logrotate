@@ -1,0 +1,15 @@
+/www/picturedetector/proxy/log/proxy-httpd_error_log
+/www/picturedetector/proxy/log/proxy-httpd_access_log {
+    daily
+    rotate 999
+    maxage 7
+    dateext
+    compress
+    delaycompress
+    missingok
+    sharedscripts
+    postrotate
+         invoke-rc.d szn-picturedetector-proxy logrotate 1>/dev/null 2>/dev/null
+    endscript
+}
+

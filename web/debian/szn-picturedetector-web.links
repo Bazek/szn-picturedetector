@@ -1,0 +1,1 @@
+/www/uwsgi/bin/uwsgi /www/picturedetector/web/bin/picturedetector-web-uwsgi
