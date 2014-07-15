@@ -74,6 +74,36 @@ class NeuralNetworkBackend(Backend):
         return neural_network
     #enddef
 
+    @rpcStatusDecorator('neural_network.list', 'S:')
+    @MySQL_slave
+    def list(self):
+        """
+        Vylistuje vsechny neuronove site
+
+        Signature:
+            neural_network.list()
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                array data {
+                    integer id              neural_network_id
+                    string description      description
+                    string configuration    konfigurace
+                }
+            }
+        """
+
+        query = """
+            SELECT id, description, configuration
+            FROM neural_network
+        """
+        self.cursor.execute(query)
+        neural_networks = self.cursor.fetchall()
+        return neural_networks
+    #enddef
+
     @rpcStatusDecorator('neural_network.add', 'S:S')
     @MySQL_master
     def add(self, param):

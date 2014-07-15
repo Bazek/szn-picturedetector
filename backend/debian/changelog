@@ -1,3 +1,10 @@
+szn-picturedetector-backend (0.2.1) Seznam; urgency=low
+
+  * Nova metoda pro vylistovani neuronovych siti
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Tue, 15 Jul 2014 9:27:33 +0100
+
+
 szn-picturedetector-backend (0.2.0) Seznam; urgency=low
 
   * Nove metody pro praci s obrazky a obrazkovymi sady:
@@ -6,7 +13,7 @@ szn-picturedetector-backend (0.2.0) Seznam; urgency=low
   *   picture.save (int, string, binary)
   *   picture_set.add (struct)
   *   picture_set.delete (int)
-  *   picture_set.list ()  
+  *   picture_set.list ()
 
  -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 2 May 2014 15:23:23 +0200
 
