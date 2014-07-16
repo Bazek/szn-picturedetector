@@ -1,2 +1,2 @@
-/www/nginx/sbin/nginx /www/picturedetector/proxy/bin/picturedetector-proxy
+/www/nginx-extras/sbin/nginx /www/picturedetector/proxy/bin/picturedetector-proxy
 

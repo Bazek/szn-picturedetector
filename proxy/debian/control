@@ -8,7 +8,7 @@ Standards-Version: 3.7.2.2
 Package: szn-picturedetector-proxy
 Architecture: all
 Section: picturedetector/Seznam
-Depends: ${shlibs:Depends}, ${misc:Depends}, szn-nginx, szn-picturedetector-web
+Depends: ${shlibs:Depends}, ${misc:Depends}, szn-nginx-extras, szn-picturedetector-web
 Description: Bootstrapped package proxy
  Proxy nginx for picturedetector
  .
