@@ -21,10 +21,11 @@ CREATE TABLE `picture_set` (
 CREATE TABLE `picture` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `picture_set_id` INT NOT NULL,
-  `learning_set` ENUM('training-true','training-false','validation','testing') NOT NULL,
+  `learning_set` ENUM('training','validation','testing') NOT NULL,
+  `learning_subset` ENUM('true','false') NOT NULL,
   `hash` CHAR(32) NOT NULL,
   PRIMARY KEY (`id`),
   FOREIGN KEY (`picture_set_id`) REFERENCES `picture_set` (`id`) ON DELETE CASCADE,
-  UNIQUE KEY unique_picture_in_learning_set (`picture_set_id`, `learning_set`, `hash`)
+  UNIQUE KEY unique_picture_in_learning_subset (`picture_set_id`, `learning_set`, `learning_subset`, `hash`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Picture';
 

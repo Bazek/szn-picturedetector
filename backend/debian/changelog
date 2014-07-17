@@ -1,3 +1,11 @@
+szn-picturedetector-backend (0.2.2) Seznam; urgency=low
+
+  * Vylepseni cest k obrazkovym souborum
+  * K obrazkovym sadam vratime pocty obrazku v jednotlivych ucicich sadach
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Tue, 17 Jul 2014 14:53:19 +0100
+
+
 szn-picturedetector-backend (0.2.1) Seznam; urgency=low
 
   * Nova metoda pro vylistovani neuronovych siti

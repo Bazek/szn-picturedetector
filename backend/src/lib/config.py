@@ -25,11 +25,24 @@ class PicturesConfig(object):
     """ Parse pictures section """
     def __init__(self, parser, section='pictures'):
         self.base_path = parser.get(section, 'BasePath')
+        self.training_path = parser.get(section, 'TrainingPath')
+        self.validation_path = parser.get(section, 'ValidationPath')
+        self.testing_path = parser.get(section, 'TestingPath')
+        self.true_path = parser.get(section, 'TruePath')
+        self.false_path = parser.get(section, 'FalsePath')
         self.learning_set_paths = {
-            "training-true":    parser.get(section, 'TrainingTruePath'),
-            "training-false":   parser.get(section, 'TrainingFalsePath'),
-            "validation":       parser.get(section, 'ValidationPath'),
-            "testing":          parser.get(section, 'TestingPath'),
+            "training":     {
+                "true":         "%s/%s" % (self.training_path, self.true_path),
+                "false":        "%s/%s" % (self.training_path, self.false_path),
+            },
+            "validation":   {
+                "true":         "%s/%s" % (self.validation_path, self.true_path),
+                "false":        "%s/%s" % (self.validation_path, self.false_path),
+            },
+            "testing":      {
+                "true":         "%s/%s" % (self.testing_path, self.true_path),
+                "false":        "%s/%s" % (self.testing_path, self.false_path),
+            },
         }
     #enddef
 #endclass
