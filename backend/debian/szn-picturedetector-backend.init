@@ -30,9 +30,9 @@ export LOG_FILE=$SERVICE_ROOT/log/szn-picturedetector-backend-dbg_log
 MAX_PROCESS=5000
 MAX_DATA_SEGM=
 MAX_LOCK_MEM=
-MAX_RESIDENT_MEM=51200
+MAX_RESIDENT_MEM=1048576
 MAX_STACK=
-MAX_VIRTUAL_MEM=204800
+MAX_VIRTUAL_MEM=2097152
 MAX_FILES=1024
 
 #jaky signal se bude posilat procesu pro reload (apache USR1, ostatni HUP)

@@ -10,6 +10,13 @@ from dbglog import dbg
 from rpc_backbone.decorators import rpcStatusDecorator, MySQL_master, MySQL_slave
 from lib.backend import Backend
 
+import caffe
+
+
+caffe_root = '/www/picturedetector/caffe'
+MODEL_FILE = 'examples/imagenet/imagenet_deploy.prototxt'
+PRETRAINED = 'examples/imagenet/caffe_reference_imagenet_model'
+MEAN_FILE = 'python/caffe/imagenet/ilsvrc_2012_mean.npy'
 
 class NeuralNetworkBackend(Backend):
     """
@@ -134,5 +141,81 @@ class NeuralNetworkBackend(Backend):
         neural_network_id = self.cursor.lastrowid
         return neural_network_id
     #enddef
+    
+    @rpcStatusDecorator('neural_network.addImages', 'S:S')
+    def addImages(self, images):
+        """
+        Funkce pro zpracovani obrazku
+
+        Signature:
+            neural_network.addImages(struct images)
+
+        @param {
+            struct {
+                id                      ID obrazku
+                path                    Cesta k obrazku
+            }
+        }
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                struct data {
+                    imageId {
+                        category        Cislo kategorie
+                        percentage      Velikost shody s danou kategorii
+                    }
+                }
+            }
+        """
+        
+        dbg.log("Path settings:\nmodel path %s\ntrained_path %s\nmean file %s", (caffe_root + MODEL_FILE, caffe_root + PRETRAINED, caffe_root + MEAN_FILE), DBG=3) 
+
+        # if we get only one image, convert it to array of one image object
+        if not isinstance(images, list):
+            images = [images]
+        
+        # create caffe classicifer
+        net = caffe.Classifier(
+            caffe_root + MODEL_FILE,
+            caffe_root + PRETRAINED,
+            mean_file=caffe_root + MEAN_FILE,
+            channel_swap=(2,1,0),
+            input_scale=255
+        )
+        
+        net.set_phase_test()
+        
+        # set GPU/CPU mode
+        net.set_mode_gpu()
+
+        # array of loaded images
+        input_images=[]
+        for image in images:
+            input_images.append(caffe.io.load_image(image['path']))
+
+        # start prediction
+        prediction = net.predict(input_images)
+        
+        # process results
+        result={}
+        
+        i = 0
+        
+        # @todo hope that result predictions are in same order as input images. Check if it is true.
+        # go through all predicted images
+        for scores in prediction:
+            # get category id with best match
+            categoryId = (-scores).argsort()[0]
+            
+            # save prediction results
+            result[images[i]['id']] = {"category":categoryId,"percentage":float(scores[categoryId])}
+            i += 1
+            
+        return result
+
+    #enddef
+
 #endclass
 
