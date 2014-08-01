@@ -185,6 +185,42 @@ class PictureSetBackend(Backend):
         return picture_set
     #enddef
 
+    @rpcStatusDecorator('picture_set.edit', 'S:iS')
+    @MySQL_master
+    def edit(self, picture_set_id, params):
+        """
+        Testovaci funkce
+
+        Signature:
+            picture_set.edit(int picture_set_id, struct param)
+
+        @picture_set_id     Id Obrazkove sady
+        @params {
+            description         Popisek
+        }
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                bool data               Success
+            }
+        """
+
+        filterDict = {
+            "description":      "description = %(description)s",
+        }
+        SET = self._getFilter(filterDict, params, "SET", ", ")
+        params["id"] = picture_set_id
+        query = """
+            UPDATE picture_set
+            """ + SET + """
+            WHERE id = %(id)s
+        """
+        self.cursor.execute(query, params)
+        return True
+    #enddef
+
     @rpcStatusDecorator('picture_set.delete', 'S:i')
     @MySQL_master
     def delete(self, picture_set_id):
@@ -252,9 +288,10 @@ class PictureBackend(Backend):
             dbg.log("Creating path: %s", path, INFO=1)
             os.makedirs(path)
         #endif
+        data = bytes(data)
         file_name = md5(data).hexdigest()
         file_path = "%s/%s" % (path, file_name)
-        f = open(file_path, "w")
+        f = open(file_path, "wb")
         f.write(data)
         f.close()
         dbg.log("Picture saved successfully: %s", file_path, INFO=3)

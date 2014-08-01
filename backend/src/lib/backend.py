@@ -11,6 +11,11 @@ from datetime import datetime
 from rpc_backbone.decorators import MySQL_master
 
 
+class BackendException(Exception):
+    pass
+#endclass
+
+
 class Backend(object):
     """
     Bazova trida pro praci s backendem

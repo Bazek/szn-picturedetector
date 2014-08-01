@@ -10,7 +10,11 @@ from dbglog import dbg
 from rpc_backbone.decorators import rpcStatusDecorator, MySQL_master, MySQL_slave
 from lib.backend import Backend
 
-import caffe
+try:
+    import caffe
+except:
+    dbg.log("Cannot import caffe", ERR=2)
+#endtry
 
 
 caffe_root = '/www/picturedetector/caffe'
@@ -140,6 +144,76 @@ class NeuralNetworkBackend(Backend):
         self.cursor.execute(query, param)
         neural_network_id = self.cursor.lastrowid
         return neural_network_id
+    #enddef
+
+    @rpcStatusDecorator('neural_network.edit', 'S:iS')
+    @MySQL_master
+    def edit(self, neural_network_id, params):
+        """
+        Testovaci funkce
+
+        Signature:
+            neural_network.edit(int id, struct param)
+
+        @neural_network_id  Id neuronove site
+        @params {
+            description         Popisek
+            configuration       Konfigurace neuronove site
+        }
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                bool data               Success
+            }
+        """
+
+        filterDict = {
+            "description":      "description = %(description)s",
+            "configuration":    "configuration = %(configuration)s",
+        }
+        SET = self._getFilter(filterDict, params, "SET", ", ")
+        params["id"] = neural_network_id
+        query = """
+            UPDATE neural_network
+            """ + SET + """
+            WHERE id = %(id)s
+        """
+        self.cursor.execute(query, params)
+        return True
+    #enddef
+
+    @rpcStatusDecorator('neural_network.delete', 'S:i')
+    @MySQL_master
+    def delete(self, neural_network_id):
+        """
+        Odstrani celou neuronovou sit
+
+        Signature:
+            neural_network.delete(int neural_network_id)
+
+        @neural_network_id           Id Neuronove site
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                bool data               Uspesne smazano
+            }
+        """
+
+        query = """
+            DELETE FROM neural_network
+            WHERE id = %s
+        """
+        self.cursor.execute(query, neural_network_id)
+        if self.cursor.rowcount == 0:
+            status, statusMessage = 404, "NeuralNetwork #%d not found." % neural_network_id
+            raise Exception(status, statusMessage)
+        #endif
+
+        return True
     #enddef
     
     @rpcStatusDecorator('neural_network.addImages', 'S:S')
