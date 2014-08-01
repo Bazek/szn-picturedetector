@@ -1,3 +1,10 @@
+szn-picturedetector-proxy (0.2.1) Seznam; urgency=low
+
+  * Zvyseni maximalni velikosti obrazku
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Fri, 1 Aug 2014 12:30:18 +0100
+
+
 szn-picturedetector-proxy (0.2.0) Seznam; urgency=low
 
   * Prechod na nginx-extras, vydej a resize obrazku
