@@ -3,7 +3,7 @@ szn-picturedetector-backend (0.4.0) Seznam; urgency=low
   * Osetreno importovani caffe
   * Obecna backendova vyjimka chybela
   * Nove metody pro editaci a mazani neuronove site
-  * Nova metoda pro editaci ucici sady obrazku    
+  * Nova metoda pro editaci ucici sady obrazku
 
  -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Fri, 1 Aug 2014 12:30:18 +0100
 
@@ -11,7 +11,7 @@ szn-picturedetector-backend (0.4.0) Seznam; urgency=low
 szn-picturedetector-backend (0.3.0) Seznam; urgency=low
 
   * Nova metoda pro klasifikaci obrazku
-  * Zvysen pametovy limit  
+  * Zvysen pametovy limit
 
  -- Ales Zurek <ales.zurek@email.cz>  Sat, 27 Jul 2014 23:25:00 +0100
 

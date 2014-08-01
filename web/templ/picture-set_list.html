@@ -7,7 +7,7 @@
             <tr>
                 <th>ID</th>
                 <th>Popis</th>
-                <th>Trénovací sady</th>
+                <th>Učicí sady obrázků</th>
                 <th>Akce</th>
         </thead>
         <tbody>
@@ -15,7 +15,19 @@
                 <tr>
                     <td>#${id}</td>
                     <td>${description}</td>
-                    <td></td>
+                    <td>
+                        <?teng frag pictures_counts ?>
+                            <?teng frag training ?>
+                                <span class="pictures_counts training"><a href="/picture-set/edit/${picture_sets.id}/training">Trénovací</a>: <a href="/picture-set/edit/${picture_sets.id}/training/true">${true}</a> + <a href="/picture-set/edit/${picture_sets.id}/training/false">${false}</a></span>
+                            <?teng endfrag ?>
+                            <?teng frag validation ?>
+                                <span class="pictures_counts validation"><a href="/picture-set/edit/${picture_sets.id}/validation">Validační</a>: <a href="/picture-set/edit/${picture_sets.id}/validation/true">${true}</a> + <a href="/picture-set/edit/${picture_sets.id}/validation/false">${false}</a></span>
+                            <?teng endfrag ?>
+                            <?teng frag testing ?>
+                                <span class="pictures_counts testing"><a href="/picture-set/edit/${picture_sets.id}/testing">Testovací</a>: <a href="/picture-set/edit/${picture_sets.id}/testing/true">${true}</a> + <a href="/picture-set/edit/${picture_sets.id}/testing/false">${false}</a></span>
+                            <?teng endfrag ?>
+                        <?teng endfrag ?>
+                    </td>
                     <td>
                         <a href="/picture-set/edit/${id}" class="pure-button pure-button-xsmall">Upravit</a>
                         <a href="/picture-set/delete/${id}" class="pure-button pure-button-error pure-button-xsmall" onclick="return confirm('Opravdu chcete smazat tuto položku?')">Smazat</a>
