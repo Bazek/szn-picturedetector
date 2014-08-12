@@ -28,6 +28,7 @@ class NeuralNetworkBackend(Backend):
     """
 
     @rpcStatusDecorator('neural_network.function', 'S:,S:b')
+    @MySQL_master
     def function(self, param=True):
         """
         Testovaci funkce
@@ -46,7 +47,10 @@ class NeuralNetworkBackend(Backend):
             }
         """
 
-        return param
+        return {
+            "normal":   self.get(2),
+            "bypass":   self.get(2, bypass_rpc_status_decorator=True),
+        }
     #enddef
 
     @rpcStatusDecorator('neural_network.get', 'S:i')
