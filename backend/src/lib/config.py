@@ -17,6 +17,7 @@ class Config(BaseConfig):
 
         self.some_section = SomeConfig(self.parser)
         self.pictures = PicturesConfig(self.parser)
+        self.caffe = CaffeConfig(self.parser)
     #enddef
 #endclass
 
@@ -47,6 +48,11 @@ class PicturesConfig(object):
     #enddef
 #endclass
 
+class CaffeConfig(object):
+    """ Parse caffe section """
+    def __init__(self, parser, section='caffe'):
+        self.gpu_mode = parser.get(section, 'GpuMode', 1)
+    #enddef
 
 class SomeConfig(object):
     """ Parse some section """

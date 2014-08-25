@@ -12,6 +12,7 @@ from lib.config import Config
 from lib.backend import Backend
 from neural_network import NeuralNetworkBackend
 from picture import PictureSetBackend, PictureBackend
+from classify import ClassifyBackend
 
 
 def init(cfg):
@@ -28,6 +29,7 @@ def init(cfg):
         'neural_network': NeuralNetworkBackend(server),
         'picture_set': PictureSetBackend(server),
         'picture': PictureBackend(server),
+        'classify': ClassifyBackend(server),
     }
     # Monitorovaci metoda
     server.registerHEADMethod(head)
