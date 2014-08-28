@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+
+### BEGIN INIT INFO
+# Provides:          szn-picturedetector-daemon
+# Required-Start:    $local_fs $network
+# Required-Stop:     $local_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: starts szn-picturedetector-daemon
+# Description:       starts szn-picturedetector-daemon
+### END INIT INFO
+
+##################################################
+
+#spousteci skript; pokud neni definovano, pouzije se $PROG
+#cela cesta k binarce, cela cesta ke konfiguracnimu souboru
+PROG="/www/picturedetector/daemon/bin/daemon.py"
+# PIDFILE may be empty for disabling the feature
+# pid from pidfile is used for killing master process only
+PIDFILE="/www/picturedetector/daemon/run/daemon.pid"
+
+#zvyseni/snizeni priority procesu
+NICE=0
+
+#maximani doba, po kterou se ceka na ukonceni procesu, pak se posle SIGKILL
+STOP_TIMEOUT=5
+
+#jaky signal se bude posilat procesu pro reload (apache USR1, ostatni HUP)
+RELOAD_SIGNAL=USR1
+
+#nahodny sleep pred zarotovanim logu
+RANDOM_SLEEP=120
+
+#nazev procesu
+NAME="szn-picturedetector-daemon"
+#pomocny popisek
+DESC="Picturedetector daemon"
+
+##################################################
+
+
+checkProcessRun()
+{
+    pidfile="$1"
+
+    if [ ! -e "$pidfile" ]; then
+        echo "0"
+        return
+    fi
+
+    removeInvalidPidfile="$2"
+    kill -0 `cat "$pidfile"` 2>/dev/null
+    RET=$?
+
+    if [ 0 -eq $RET ]; then
+        echo "1"
+    else
+        if [ "x" != "x$removeInvalidPidfile" -a "0" != "$removeInvalidPidfile" ]; then
+            # remove pidfile for nonexisting process
+            rm "$PIDFILE"
+        fi
+
+        echo "0"
+    fi
+}
+
+
+TMPDIR=/tmp
+export TMPDIR
+
+#test if file exist
+if [ ! -x ${PROG} ]; then
+    [ -x ${PROG} ] || echo "${PROG} does not exist or is not executable"
+    exit 1
+fi
+
+checkProcessRun "$PIDFILE" 1 > /dev/null
+
+case "$1" in
+    start)
+        echo -n "Starting ${DESC}: "
+
+        if [ -e "$PIDFILE" ]; then
+            echo "failed. (${NAME} is running)"
+            exit 1
+        else
+            #start program
+            start-stop-daemon --start --background --make-pidfile \
+                --pidfile $PIDFILE --nicelevel $NICE --exec $PROG
+
+            /bin/sleep 1
+            running=`checkProcessRun "$PIDFILE" 1`
+
+            if [ "0" == "$running" ]; then
+                # write failed and exit
+                echo "failed."
+                exit 1
+            fi
+
+            echo "done."
+        fi
+        ;;
+
+    stop)
+        echo -n "Stopping ${DESC}: "
+
+        if [ -e "$PIDFILE" ]; then
+            # kill process
+            start-stop-daemon --stop --pidfile $PIDFILE --retry $STOP_TIMEOUT
+            # manualy delete pidfile
+            rm $PIDFILE
+            echo " done."
+        else
+            echo "failed. (${NAME} is not running)"
+        fi
+        ;;
+
+    restart)
+        ${0} stop
+        ${0} start
+        ;;
+
+
+    reload)
+        echo -n "Reloading ${DESC}: "
+
+        if [ -e "$PIDFILE" ]; then
+            start-stop-daemon --stop --signal $RELOAD_SIGNAL --quiet --pidfile $PIDFILE || true
+            echo " done."
+        else
+            echo "failed. (${NAME} is not running)"
+            exit 1
+        fi
+        ;;
+
+    randsleep)
+        # random sleep
+        NUMBER=$RANDOM
+        let "NUMBER %= $RANDOM_SLEEP"
+        ${0} sleep ${NUMBER}
+        ;;
+
+    sleep)
+        if [ "$2" != "" ]; then
+            TIMEOUT=$2
+        else
+            #default
+            TIMEOUT=10
+        fi
+
+        echo -n "Sleeping for ${TIMEOUT} seconds: "
+        COUNT=${TIMEOUT}
+
+        while ([ $COUNT != 0 ]); do
+            let COUNT=$COUNT-1
+            echo -n .
+            /bin/sleep 1
+        done
+
+        echo " done."
+        ;;
+
+
+    status)
+        if [ -e "$PIDFILE" ]; then
+            echo "${NAME} is running"
+        else
+            echo "${NAME} is not running"
+        fi
+        ;;
+
+    logrotate)
+        ${0} randsleep
+        ${0} reload
+        ;;
+
+    *)
+        echo "Usage: ${0} {start|stop|reload|restart|status|logrotate}"
+        ;;
+esac
+
+exit $?
+

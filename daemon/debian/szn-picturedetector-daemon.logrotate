@@ -1,0 +1,12 @@
+/www/picturedetector/daemon/log/daemon.log {
+    daily
+    rotate 999
+    maxage 7
+    dateext
+    compress
+    missingok
+    sharedscripts
+    postrotate
+         invoke-rc.d szn-picturedetector-daemon logrotate 1>/dev/null 2>/dev/null
+    endscript
+}

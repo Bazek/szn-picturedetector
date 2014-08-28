@@ -1,0 +1,78 @@
+$Id$
+
+This is directory describing how to pack szn-picturedetector-daemon.
+
+The following files can occur here:
+
+changelog
+    Essential file containing log of changes. Used to determine maintainer and
+    version of the package going to be build. Also helps keeping track of
+    changes between versions (its original purpose).
+
+contest
+    Rules for content testing. First column is directory, next columns contain
+    regular expressions the file must not contain. Note: shell escaping takes
+    place before generating regexes, so regex escapes must be doubled.
+
+control
+    Debian control file describing the source and the package(s) to be built.
+
+prepare
+    Script called before building but after packing the source. Useful for
+    automatic generation of package(s) descriptions in control file and
+    package(s) specific files (via szn-buildtemplate). Can be omitted.
+
+rules
+    Makefile for building the package(s). Special configuration flags can be
+    specified in `DEB_CONFIGURE_USER_FLAGS'.
+
+<package>.conffiles
+    List of all configuration files. All files in `/etc' and all matching the
+    regular expression `/www/.*/conf/.*\.conf' are listed automatically.
+
+<package>.cron.(d|hourly|daily|mothly|weekly)
+    Cron script(s). Omit if not used.
+
+<package>.dirs
+    List of empty directories to be created. Directories that won't be empty
+    can be omitted as they will be created anyway. Can be omitted.
+
+<package>.init
+    Script for `/etc/init.d'. Omit if the package does not have one. It is
+    NOT installed automatically.
+
+<package>.install
+    List of files to be installed in format $source $place.
+
+<package>.links
+    List of links to be created in format $target $place. Can be omitted.
+
+<package>.logrotate
+    Logrotate script. Omit if the package does not have logs.
+
+<package>.manpages
+    List of manual pages for that package (installation directory guessed
+    automatically).  Can be omitted.
+
+<package>.postinst
+    Postinstallation script. Installation of the init script (if there's one)
+    should go here under `configure'. Can be omitted (but required by PUT).
+
+<package>.postrm
+    Postremoval script. If there's init script, removal of it in the case of
+    purging is automatically appended. Can be omitted (but required by PUT).
+
+<package>.preinst
+    Preinstallation script. Can be omitted (but required by PUT).
+
+<package>.prerm
+    Preremoval script. If there's init script, stopping the service in the case
+    of removal (not upgrade) is automatically appended. Can be omitted (but
+    required by PUT).
+
+<package>.supervisor
+    Autodescriptor for supervisor. It is copied to the proper location.
+
+<package>.templates
+    Templates for debconf. If you do not know what this means, omit it.
+

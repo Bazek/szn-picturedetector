@@ -1,0 +1,2 @@
+conf/*.conf /www/picturedetector/daemon/conf/
+src/*.py /www/picturedetector/daemon/bin/
