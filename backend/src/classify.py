@@ -102,14 +102,25 @@ class ClassifyBackend(Backend):
         
         i = 0
         
+        # crop categories array
+        slice_size = int(self.config.classify.number_of_categories)
+        dbg.log("max output categories %s", slice_size, INFO=3)
+            
         # @todo hope that result predictions are in same order as input images. Check if it is true.
         # go through all predicted images
         for scores in prediction:
             # get category id with best match
-            categoryId = (-scores).argsort()[0]
+            categoryIds = (-scores).argsort()
+            
+            if slice_size != 0:
+                categoryIds = categoryIds[:slice_size]
             
             # save prediction results
-            result[images[i]['id']] = {"category":categoryId,"percentage":float(scores[categoryId])}
+            categories = []
+            for id in categoryIds:
+                categories.append({"category":id,"percentage":float(scores[id])})
+            
+            result[images[i]['id']] = categories;
             i += 1
             
         return result

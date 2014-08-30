@@ -15,7 +15,7 @@ class Config(BaseConfig):
     def __init__(self, configFile, passwdFile=None):
         super(Config, self).__init__(configFile, passwdFile)
 
-        self.some_section = SomeConfig(self.parser)
+        self.classify = ClassifyConfig(self.parser)
         self.pictures = PicturesConfig(self.parser)
         self.caffe = CaffeConfig(self.parser)
     #enddef
@@ -54,9 +54,9 @@ class CaffeConfig(object):
         self.gpu_mode = parser.get(section, 'GpuMode', 1)
     #enddef
 
-class SomeConfig(object):
-    """ Parse some section """
-    def __init__(self, parser, section='some-section'):
-        self.some_value = parser.get(section, 'SomeValue', "default")
+class ClassifyConfig(object):
+    """ Parse classify section """
+    def __init__(self, parser, section='classify'):
+        self.number_of_categories = parser.get(section, 'NumberOfCategories', 0)
     #enddef
 #endclass
