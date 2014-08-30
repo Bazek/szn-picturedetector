@@ -13,7 +13,7 @@ from lib.backend import Backend
 from neural_network import NeuralNetworkBackend
 from picture import PictureSetBackend, PictureBackend
 from classify import ClassifyBackend
-
+from model import ModelBackend
 
 def init(cfg):
     # Nacitani konfigurace
@@ -30,6 +30,7 @@ def init(cfg):
         'picture_set': PictureSetBackend(server),
         'picture': PictureBackend(server),
         'classify': ClassifyBackend(server),
+        'model': ModelBackend(server),
     }
     # Monitorovaci metoda
     server.registerHEADMethod(head)

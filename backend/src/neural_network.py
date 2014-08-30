@@ -57,7 +57,7 @@ class NeuralNetworkBackend(Backend):
     @MySQL_slave
     def get(self, id):
         """
-        Testovaci funkce
+        Funkce pro precteni dat o neuronove siti dle zadaneho ID neuronove site
 
         Signature:
             neural_network.get(integer id)
@@ -131,7 +131,7 @@ class NeuralNetworkBackend(Backend):
     @MySQL_master
     def add(self, param):
         """
-        Testovaci funkce
+        Pridani nove neuornove site s vybranym ID modelu
 
         Signature:
             neural_network.add(struct param)
@@ -164,7 +164,7 @@ class NeuralNetworkBackend(Backend):
     @MySQL_master
     def edit(self, neural_network_id, params):
         """
-        Testovaci funkce
+        Editace neuronove site
 
         Signature:
             neural_network.edit(int id, struct param)
