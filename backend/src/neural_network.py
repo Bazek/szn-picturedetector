@@ -66,20 +66,24 @@ class NeuralNetworkBackend(Backend):
 
         Returns:
             struct {
-                int status              200 = OK
-                string statusMessage    Textovy popis stavu
+                int status                          200 = OK
+                string statusMessage                Textovy popis stavu
                 struct data {
-                    integer id              neural_network_id
-                    string description      description
-                    string configuration    konfigurace
+                    integer id                      neural network id
+                    integer model                   model id
+                    string description              description
+                    string pretrained_model_path    cesta k predtrenovanemu modelu
+                    string mean_file_path           cesta k mean file souboru
+                    string model_config_path        cesta k souboru s konfiguraci modelu
                 }
             }
         """
 
         query = """
-            SELECT id, description, configuration
+            SELECT neural_network.id, neural_network.model, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file_path, model.model_config_path
             FROM neural_network
-            WHERE id = %s
+            JOIN model ON neural_network.model = model.id
+            WHERE neural_network.id = %s
         """
         self.cursor.execute(query, id)
         neural_network = self.cursor.fetchone()
@@ -100,19 +104,23 @@ class NeuralNetworkBackend(Backend):
 
         Returns:
             struct {
-                int status              200 = OK
-                string statusMessage    Textovy popis stavu
+                int status                          200 = OK
+                string statusMessage                Textovy popis stavu
                 array data {
-                    integer id              neural_network_id
-                    string description      description
-                    string configuration    konfigurace
+                    integer id                      neural_network_id
+                    integer model                   model id
+                    string description              description
+                    string pretrained_model_path    cesta k predtrenovanemu modelu
+                    string mean_file_path           cesta k mean file souboru
+                    string model_config_path        cesta k souboru s konfiguraci modelu
                 }
             }
         """
 
         query = """
-            SELECT id, description, configuration
+            SELECT neural_network.id, neural_network.model, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file_path, model.model_config_path
             FROM neural_network
+            JOIN model ON neural_network.model = model.id
         """
         self.cursor.execute(query)
         neural_networks = self.cursor.fetchall()
@@ -129,8 +137,10 @@ class NeuralNetworkBackend(Backend):
             neural_network.add(struct param)
 
         @param {
-            description     Popisek
-            configuration   Konfigurace neuronove site
+            model                   ID modelu z ktereho neuronova sit vychazi
+            description             Popisek
+            pretrained_model_path   cesta k predtrenovanemu modelu
+            mean_file_path          cesta k mean file souboru
         }
 
         Returns:
@@ -142,8 +152,8 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            INSERT INTO neural_network (`description`, `configuration`)
-            VALUE (%(description)s, %(configuration)s)
+            INSERT INTO neural_network (`model`, `description`, `pretrained_model_path`, `mean_file_path`)
+            VALUE (%(model)s, %(description)s, %(pretrained_model_path)s, %(mean_file_path)s)
         """
         self.cursor.execute(query, param)
         neural_network_id = self.cursor.lastrowid
@@ -161,8 +171,10 @@ class NeuralNetworkBackend(Backend):
 
         @neural_network_id  Id neuronove site
         @params {
-            description         Popisek
-            configuration       Konfigurace neuronove site
+            model                   ID modelu z ktereho neuronova sit vychazi
+            description             Popisek
+            pretrained_model_path   cesta k predtrenovanemu modelu
+            mean_file_path          cesta k mean file souboru
         }
 
         Returns:
@@ -174,9 +186,12 @@ class NeuralNetworkBackend(Backend):
         """
 
         filterDict = {
-            "description":      "description = %(description)s",
-            "configuration":    "configuration = %(configuration)s",
+            "model":                    "model = %(model)s",
+            "description":              "description = %(description)s",
+            "pretrained_model_path":    "pretrained_model_path = %(pretrained_model_path)s",
+            "mean_file_path":           "mean_file_path = %(mean_file_path)s",
         }
+        
         SET = self._getFilter(filterDict, params, "SET", ", ")
         params["id"] = neural_network_id
         query = """
@@ -220,80 +235,5 @@ class NeuralNetworkBackend(Backend):
         return True
     #enddef
     
-    @rpcStatusDecorator('neural_network.addImages', 'S:S')
-    def addImages(self, images):
-        """
-        Funkce pro zpracovani obrazku
-
-        Signature:
-            neural_network.addImages(struct images)
-
-        @param {
-            struct {
-                id                      ID obrazku
-                path                    Cesta k obrazku
-            }
-        }
-
-        Returns:
-            struct {
-                int status              200 = OK
-                string statusMessage    Textovy popis stavu
-                struct data {
-                    imageId {
-                        category        Cislo kategorie
-                        percentage      Velikost shody s danou kategorii
-                    }
-                }
-            }
-        """
-        
-        dbg.log("Path settings:\nmodel path %s\ntrained_path %s\nmean file %s", (caffe_root + MODEL_FILE, caffe_root + PRETRAINED, caffe_root + MEAN_FILE), DBG=3) 
-
-        # if we get only one image, convert it to array of one image object
-        if not isinstance(images, list):
-            images = [images]
-        
-        # create caffe classicifer
-        net = caffe.Classifier(
-            caffe_root + MODEL_FILE,
-            caffe_root + PRETRAINED,
-            mean_file=caffe_root + MEAN_FILE,
-            channel_swap=(2,1,0),
-            input_scale=255
-        )
-        
-        net.set_phase_test()
-        
-        # set GPU/CPU mode
-        net.set_mode_gpu()
-
-        # array of loaded images
-        input_images=[]
-        for image in images:
-            input_images.append(caffe.io.load_image(image['path']))
-
-        # start prediction
-        prediction = net.predict(input_images)
-        
-        # process results
-        result={}
-        
-        i = 0
-        
-        # @todo hope that result predictions are in same order as input images. Check if it is true.
-        # go through all predicted images
-        for scores in prediction:
-            # get category id with best match
-            categoryId = (-scores).argsort()[0]
-            
-            # save prediction results
-            result[images[i]['id']] = {"category":categoryId,"percentage":float(scores[categoryId])}
-            i += 1
-            
-        return result
-
-    #enddef
-
 #endclass
 

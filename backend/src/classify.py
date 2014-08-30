@@ -5,9 +5,6 @@
 #   Klasifikace obrazku pomoci neuronove site
 #
 
-import StringIO
-from ConfigParser import SafeConfigParser
-
 import metaserver.fastrpc as server
 from dbglog import dbg
 from lib.backend import Backend
@@ -50,17 +47,10 @@ class ClassifyBackend(Backend):
 
         network = server.globals.rpcObjects['neural_network'].get(neural_network_id, bypass_rpc_status_decorator=True)
         dbg.log("network %s", network, INFO=3) 
-        
-        network_configuration = network['configuration']
-        dbg.log("network_configuration %s", network_configuration, INFO=3) 
-        
-        config = SafeConfigParser(allow_no_value=True)
-        config_file = StringIO.StringIO(network_configuration)
-        config.readfp(config_file)
 
-        model_config_path = config.get('paths', 'modelConfiguration')
-        pretrained_model_path = config.get('paths', 'pretrainedModel')
-        mean_file_path = config.get('paths', 'meanFile')
+        model_config_path = network['model_config_path']
+        pretrained_model_path = network['pretrained_model_path']
+        mean_file_path = network['mean_file_path']
         
         dbg.log("Path settings:\nmodel path %s\ntrained_path %s\nmean file %s", (model_config_path, pretrained_model_path, mean_file_path), DBG=3) 
 
