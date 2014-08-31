@@ -39,7 +39,12 @@ class PicturedetectorDaemonConfig(DaemonConfig):
             self.learn_script = parser.get(section, "LearnScript")
             self.create_imagenet_script = parser.get(section, "CreateImagenetScript")
             self.save_file_prefix = parser.get(section, "SaveFilePrefix")
-            
+            self.image_file_path = parser.get(section, "ImageFilePath")
+            self.image_file_prefix = parser.get(section, "ImageFilePrefix")
+            self.image_learn_file_suffix = parser.get(section, "ImageLearnFileSuffix")
+            self.image_validate_file_suffix = parser.get(section, "ImageValidateFileSuffix")      
+            self.imagenet_path = parser.get(section, "ImagenetPath")  
+            self.imagenet_prefix = parser.get(section, "ImagenetPrefix")  
         #enddef
     #endclass
 
@@ -57,6 +62,14 @@ class PicturedetectorDaemonConfig(DaemonConfig):
 
 class PicturedetectorDaemon(Daemon):
     """ PicturedetectorDaemon Process """
+    # Konstanty pro rozliseni souboru pro uceni a validaci
+    TRAIN = 'train'
+    VALIDATE = 'validate'
+    
+    # Konstanty, ktere odpovidaji enum hodnotam v tabulce picture
+    DB_TRAINING = 'training'
+    DB_VALIDATION = 'validation'
+    DB_TESTING = 'testing'
     
     def __learningInProgress(self):
         pid = self._readPid()
@@ -150,15 +163,18 @@ class PicturedetectorDaemon(Daemon):
     def _startCaffeLearning(self, neural_network, picture_set, startIteration = 0):
         learn_script = self.config.caffe.learn_script
         create_script = self.config.caffe.create_script
-        
+                
         # Ziskat picture set a vygenerovat soubory s cestami k obrazkum (validacni a ucici)
-        #TODO
+        picture_files = self._createFilesWithImages(picture_set)
+        
+        # Vytvoreni nazvu imagenet, kde budou ulozeny obrazky z picture_setu
+        #TODO problem: imagenet_path is stored in imagenet_val.prototxt and imagenet_train_val.prototxt
+        # should I generate these files for each neural_network?
+        # or somehow change the loading from imagenet to something else?
+        imagenet_path = self._createImagenetName(picture_set)
         
         # Vytvorit imagenet pomoci souboru s obrazky
-        #TODO predat cestu k souboru s trenovacimi obrazky, cestku k souboru s validacnimi obrazky, nazev imagenet
-        subprocess.call(create_script)
-        
-        #TODO Kde ulozit cesty k souboru s obrazky pro uceni? DB ke kazde neuronove siti nebo do konfigu?
+        subprocess.call(create_script, picture_files[self.TRAIN], picture_files[self.VALIDATE], imagenet_path)
         
         learn_args = []
         network = server.globals.rpcObjects['neural_network'].get(neural_network, bypass_rpc_status_decorator=True)
@@ -186,8 +202,67 @@ class PicturedetectorDaemon(Daemon):
         #endif
     #enddef
 
-#endclass
+    def _createFilesWithImages(self, picture_set):
+        image_learn_file_suffix = self.config.caffe.image_learn_file_suffix
+        image_validate_file_suffix = self.config.caffe.image_validate_file_suffix
+        learn_file = self._createImageFileName(picture_set, image_learn_file_suffix)
+        validate_file = self._createImageFileName(picture_set, image_validate_file_suffix)
+        
+        # Otevrit soubory pro zapis
+        f_learn = fopen(learn_file, 'w')
+        if not f:
+            raise self.ProcessException("Nemuzu vytvorit soubor s obrazky (" + learn_file + ")!")
+        
+        f_validate = fopen(validate_file, 'w')
+        if not f:
+            raise self.ProcessException("Nemuzu vytvorit soubor s obrazky (" + validate_file + ")!")
+        
+        createdFiles = {
+            self.TRAIN: learn_file,
+            self.VALIDATE: validate_file
+        }
+        
+        # nacist obrazky z picture setu
+        pictures = server.globals.rpcObjects['picture'].list(picture_set, bypass_rpc_status_decorator=True)
+        
+        # prochazeni obrazku a ukladani do prislusnych souboru
+        for picture in pictures:
+            if picture['learning_set'] == self.DB_TRAINING:
+                file = f_learn
+            elif picture['learning_set'] == self.DB_VALIDATION:
+                file = f_validate
+            elif picture['learning_set'] == self.DB_TESTING:
+                continue
+            #endif
 
+            line = picture['hash'] + ' ' + picture['learning_subset']
+            file.write(line)
+        
+        # uzavreni souboru
+        f_learn.close()
+        f_validate.close()
+        
+        return createdFiles
+    #enddef
+    
+    def _createImageFileName(self, picture_set, suffix = ""):
+        path = self.config.caffe.image_file_path
+        prefix = self.config.caffe.image_file_prefix
+        
+        filename = path + prefix + picture_set + suffix
+        
+        return filename
+    #enddef
+    
+    def _createImagenetName(self, picture_set):
+        path = self.config.caffe.imagenet_path
+        prefix = self.config.caffe.imagenet_prefix
+        
+        filename = path + prefix + picture_set
+        
+        return filename
+    #enddef
+#endclass
 
 
 

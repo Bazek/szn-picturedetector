@@ -31,7 +31,7 @@ CREATE TABLE `picture` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `picture_set_id` INT NOT NULL,
   `learning_set` ENUM('training','validation','testing') NOT NULL,
-  `learning_subset` ENUM('true','false') NOT NULL,
+  `learning_subset` INT(3) NOT NULL,
   `hash` CHAR(32) NOT NULL,
   PRIMARY KEY (`id`),
   FOREIGN KEY (`picture_set_id`) REFERENCES `picture_set` (`id`) ON DELETE CASCADE,
