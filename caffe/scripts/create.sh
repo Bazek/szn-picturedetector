@@ -7,7 +7,8 @@ DATA=../../data/ilsvrc12
 
 TRAIN_DATA=$1
 VAL_DATA=$2
-IMAGENET_NAME=$3
+IMAGENET_TRAIN_NAME=$3
+IMAGENET_VAL_NAME=$4
 
 # Set RESIZE=true to resize the images to 256x256. Leave as false if images have
 # already been resized using another tool.
@@ -39,7 +40,7 @@ echo "Creating train leveldb..."
 GLOG_logtostderr=1 $TOOLS/convert_imageset.bin \
     /home/hol/seznam-obrazky/ \
     $DATA/train.txt \
-    $IMAGENET_NAME 1
+    $IMAGENET_TRAIN_NAME 1
     $RESIZE_HEIGHT $RESIZE_WIDTH
 
 echo "Creating val leveldb..."
@@ -47,7 +48,7 @@ echo "Creating val leveldb..."
 GLOG_logtostderr=1 $TOOLS/convert_imageset.bin \
     /home/hol/seznam-obrazky/ \
     $DATA/val.txt \
-    $IMAGENET_NAME 1
+    $IMAGENET_VAL_NAME 1
     $RESIZE_HEIGHT $RESIZE_WIDTH
 
 echo "Done."

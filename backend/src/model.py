@@ -29,12 +29,13 @@ class ModelBackend(Backend):
                     string name                     nazev modelu
                     string description              description
                     string model_config_path        cesta k souboru s konfiguraci modelu
+                    string solver_config_path       cesta k souboru s konfiguraci pro trenovani
                 }
             }
         """
 
         query = """
-            SELECT id, name, description, model_config_path
+            SELECT id, name, description, model_config_path, solver_config_path
             FROM model
             WHERE id = %s
         """
@@ -64,12 +65,13 @@ class ModelBackend(Backend):
                     string name                     nazev modelu
                     string description              description
                     string model_config_path        cesta k souboru s konfiguraci modelu
+                    string solver_config_path       cesta k souboru s konfiguraci pro trenovani
                 }
             }
         """
 
         query = """
-            SELECT id, name, description, model_config_path
+            SELECT id, name, description, model_config_path, solver_config_path
             FROM model
         """
         self.cursor.execute(query)
@@ -90,6 +92,7 @@ class ModelBackend(Backend):
             string name                     nazev modelu
             string description              description
             string model_config_path        cesta k souboru s konfiguraci modelu
+            string solver_config_path       cesta k souboru s konfiguraci pro trenovani
         }
 
         Returns:
@@ -101,8 +104,8 @@ class ModelBackend(Backend):
         """
 
         query = """
-            INSERT INTO model (`name`, `description`, `model_config_path`)
-            VALUE (%(name)s, %(description)s, %(model_config_path)s)
+            INSERT INTO model (`name`, `description`, `model_config_path`, `solver_config_path`)
+            VALUE (%(name)s, %(description)s, %(model_config_path)s, %(solver_config_path)s)
         """
         self.cursor.execute(query, param)
         model_id = self.cursor.lastrowid
@@ -123,6 +126,7 @@ class ModelBackend(Backend):
             string name                 nazev modelu
             string description          description
             string model_config_path    cesta k souboru s konfiguraci modelu
+            string solver_config_path   cesta k souboru s konfiguraci pro trenovani
         }
 
         Returns:
@@ -137,6 +141,7 @@ class ModelBackend(Backend):
             "name":                     "name = %(name)s",
             "description":              "description = %(description)s",
             "model_config_path":        "model_config_path = %(model_config_path)s",
+            "solver_config_path":       "solver_config_path = %(solver_config_path)s",
         }
         
         SET = self._getFilter(filterDict, params, "SET", ", ")

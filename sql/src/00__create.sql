@@ -9,6 +9,7 @@ CREATE TABLE `model` (
   `name` varchar(127) NOT NULL,
   `description` varchar(255) NOT NULL,
   `model_config_path` varchar(255) NOT NULL,
+  `solver_config_path` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Models for neural networks';
 
@@ -18,6 +19,8 @@ CREATE TABLE `neural_network` (
   `description` varchar(255) NOT NULL,
   `pretrained_model_path` varchar(255) NOT NULL,
   `mean_file_path` varchar(255) NOT NULL,
+  `train_db_path` varchar(255) NOT NULL,
+  `validate_db_path` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Neural networks with configuration';
 

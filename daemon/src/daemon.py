@@ -43,8 +43,6 @@ class PicturedetectorDaemonConfig(DaemonConfig):
             self.image_file_prefix = parser.get(section, "ImageFilePrefix")
             self.image_learn_file_suffix = parser.get(section, "ImageLearnFileSuffix")
             self.image_validate_file_suffix = parser.get(section, "ImageValidateFileSuffix")      
-            self.imagenet_path = parser.get(section, "ImagenetPath")  
-            self.imagenet_prefix = parser.get(section, "ImagenetPrefix")  
         #enddef
     #endclass
 
@@ -167,22 +165,25 @@ class PicturedetectorDaemon(Daemon):
         # Ziskat picture set a vygenerovat soubory s cestami k obrazkum (validacni a ucici)
         picture_files = self._createFilesWithImages(picture_set)
         
-        # Vytvoreni nazvu imagenet, kde budou ulozeny obrazky z picture_setu
-        #TODO problem: imagenet_path is stored in imagenet_val.prototxt and imagenet_train_val.prototxt
-        # should I generate these files for each neural_network?
-        # or somehow change the loading from imagenet to something else?
-        imagenet_path = self._createImagenetName(picture_set)
+        # Nacteni informaci o neuronvoe siti
+        network = server.globals.rpcObjects['neural_network'].get(neural_network, bypass_rpc_status_decorator=True)
         
-        # Vytvorit imagenet pomoci souboru s obrazky
-        subprocess.call(create_script, picture_files[self.TRAIN], picture_files[self.VALIDATE], imagenet_path)
+        # Vymazat stare uloznene obrazky pokud existuji
+        if os.path.exists(network['train_db_path']):
+            os.rmdir(network['train_db_path'])
+            
+        if os.path.exists(network['validate_db_path']):
+            os.rmdir(network['validate_db_path'])
+            
+        # Vytvorit imagenet pomoci souboru s obrazky a zadanych cest kde se maji vytvorit
+        subprocess.call(create_script, picture_files[self.TRAIN], picture_files[self.VALIDATE], network['train_db_path'], network['validate_db_path'])
         
         learn_args = []
-        network = server.globals.rpcObjects['neural_network'].get(neural_network, bypass_rpc_status_decorator=True)
-        args.append(network['model_config_path'])
+        learn_args.append(network['model_config_path'])
         
         if startIteration:
             saveFilePrefix = self.config.caffe.save_file_prefix
-            args.append(saveFilePrefix+startIteration)
+            learn_args.append(saveFilePrefix+startIteration)
         
         p = subprocess.Popen(learn_script, learn_args)
         if p:
@@ -254,14 +255,6 @@ class PicturedetectorDaemon(Daemon):
         return filename
     #enddef
     
-    def _createImagenetName(self, picture_set):
-        path = self.config.caffe.imagenet_path
-        prefix = self.config.caffe.imagenet_prefix
-        
-        filename = path + prefix + picture_set
-        
-        return filename
-    #enddef
 #endclass
 
 
