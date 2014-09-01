@@ -64,7 +64,7 @@ class NeuralNetworkBackend(Backend):
                 string statusMessage                Textovy popis stavu
                 struct data {
                     integer id                      neural network id
-                    integer model                   model id
+                    integer model_id                 model id
                     string description              description
                     string pretrained_model_path    cesta k predtrenovanemu modelu
                     string mean_file_path           cesta k mean file souboru
@@ -76,9 +76,9 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            SELECT neural_network.id, neural_network.model, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file_path, neural_network.train_db_path, neural_network.validate_db_path, model.model_config_path
+            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file_path, neural_network.train_db_path, neural_network.validate_db_path, model.model_config_path
             FROM neural_network
-            JOIN model ON neural_network.model = model.id
+            JOIN model ON neural_network.model_id = model.id
             WHERE neural_network.id = %s
         """
         self.cursor.execute(query, id)
@@ -104,7 +104,7 @@ class NeuralNetworkBackend(Backend):
                 string statusMessage                Textovy popis stavu
                 array data {
                     integer id                      neural_network_id
-                    integer model                   model id
+                    integer model_id                model id
                     string description              description
                     string pretrained_model_path    cesta k predtrenovanemu modelu
                     string mean_file_path           cesta k mean file souboru
@@ -116,9 +116,9 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            SELECT neural_network.id, neural_network.model, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file_path, neural_network.train_db_path, neural_network.validate_db_path, model.model_config_path
+            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file_path, neural_network.train_db_path, neural_network.validate_db_path, model.model_config_path
             FROM neural_network
-            JOIN model ON neural_network.model = model.id
+            JOIN model ON neural_network.model_id = model.id
         """
         self.cursor.execute(query)
         neural_networks = self.cursor.fetchall()
@@ -135,7 +135,7 @@ class NeuralNetworkBackend(Backend):
             neural_network.add(struct param)
 
         @param {
-            model                       ID modelu z ktereho neuronova sit vychazi
+            model_id                    ID modelu z ktereho neuronova sit vychazi
             description                 Popisek
             pretrained_model_path       cesta k predtrenovanemu modelu
             mean_file_path              cesta k mean file souboru
@@ -152,8 +152,8 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            INSERT INTO neural_network (`model`, `description`, `pretrained_model_path`, `mean_file_path`, `train_db_path`, `validate_db_path`)
-            VALUE (%(model)s, %(description)s, %(pretrained_model_path)s, %(mean_file_path)s, %(train_db_path)s, %(validate_db_path)s)
+            INSERT INTO neural_network (`model_id`, `description`, `pretrained_model_path`, `mean_file_path`, `train_db_path`, `validate_db_path`)
+            VALUE (%(model_id)s, %(description)s, %(pretrained_model_path)s, %(mean_file_path)s, %(train_db_path)s, %(validate_db_path)s)
         """
         self.cursor.execute(query, param)
         neural_network_id = self.cursor.lastrowid
@@ -171,7 +171,7 @@ class NeuralNetworkBackend(Backend):
 
         @neural_network_id  Id neuronove site
         @params {
-            model                       ID modelu z ktereho neuronova sit vychazi
+            model_id                    ID modelu z ktereho neuronova sit vychazi
             description                 Popisek
             pretrained_model_path       cesta k predtrenovanemu modelu
             mean_file_path              cesta k mean file souboru
@@ -188,7 +188,7 @@ class NeuralNetworkBackend(Backend):
         """
 
         filterDict = {
-            "model":                    "model = %(model)s",
+            "model_id":                 "model_id = %(model_id)s",
             "description":              "description = %(description)s",
             "pretrained_model_path":    "pretrained_model_path = %(pretrained_model_path)s",
             "mean_file_path":           "mean_file_path = %(mean_file_path)s",

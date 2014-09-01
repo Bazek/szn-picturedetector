@@ -88,19 +88,21 @@ class PicturedetectorDaemon(Daemon):
     def __getNextNeuralNetwork(self):
         # Precteme z databaze dalsi neuronovou sit pripravenou ve fronte k uceni
         cursor = self.config.db.cursor(MySQLdb.cursors.DictCursor)
-        query = "SELECT neural_network FROM learning_queue WHERE status = 'waiting'"
+        query = "SELECT neural_network_id, picture_set_id, start_iteration FROM learning_queue WHERE status = 'waiting'"
         cursor.execute(query)
-        neural_network = cursor.fetchone()
+        queue_info = cursor.fetchone()
         cursor.close()
-        return neural_network
+        return queue_info
     #enddef
     
-    def __startLearningProcess(self, neural_network, picture_set):
+    def __startLearningProcess(self, queue_info):
+        cursor = self.config.db.cursor(MySQLdb.cursors.DictCursor)
+        
         # Aktualizujeme zaznam v databazi
         query = "UPDATE learning_queue SET status = 'learning' WHERE status = 'waiting'";
-        self.cursor.execute(query)
+        cursor.execute(query)
         
-        pid = self._startCaffeLearning(neural_network, picture_set, startIteration)
+        pid = self._startCaffeLearning(queue_info['neural_network_id'], queue_info['picture_set_id'], queue_info['start_iteration'])
         if pid:
             self._savePid(pid)
             return True
@@ -110,6 +112,8 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
     def __stopLearningProcess(self):
+        cursor = self.config.db.cursor(MySQLdb.cursors.DictCursor)
+        
         # Zastavime ucici proces
         if not self.__learningInProgress():
             dbg.log("Learning NOT in progress", WARN=2)
@@ -122,7 +126,7 @@ class PicturedetectorDaemon(Daemon):
         
         # Odstraneni zaznamu v databazi
         query = "DELETE FROM learning_queue WHERE status = 'learning'";
-        self.cursor.execute(query)
+        cursor.execute(query)
         
         # Odstraneni souboru s bezicim PID
         pid_file = self.config.caffe.pid_file
@@ -160,7 +164,7 @@ class PicturedetectorDaemon(Daemon):
 
     def _startCaffeLearning(self, neural_network, picture_set, startIteration = 0):
         learn_script = self.config.caffe.learn_script
-        create_script = self.config.caffe.create_script
+        create_imagenet_script = self.config.caffe.create_imagenet_script
                 
         # Ziskat picture set a vygenerovat soubory s cestami k obrazkum (validacni a ucici)
         picture_files = self._createFilesWithImages(picture_set)
@@ -176,7 +180,7 @@ class PicturedetectorDaemon(Daemon):
             os.rmdir(network['validate_db_path'])
             
         # Vytvorit imagenet pomoci souboru s obrazky a zadanych cest kde se maji vytvorit
-        subprocess.call(create_script, picture_files[self.TRAIN], picture_files[self.VALIDATE], network['train_db_path'], network['validate_db_path'])
+        subprocess.call(create_imagenet_script, picture_files[self.TRAIN], picture_files[self.VALIDATE], network['train_db_path'], network['validate_db_path'])
         
         learn_args = []
         learn_args.append(network['model_config_path'])
@@ -197,9 +201,9 @@ class PicturedetectorDaemon(Daemon):
             dbg.log("Learning still in progress", INFO=2)
             return
         #endif
-        neural_network = self.__getNextNeuralNetwork()
-        if neural_network:
-            self.__startLearningProcess(neural_network)
+        queue_info = self.__getNextNeuralNetwork()
+        if queue_info:
+            self.__startLearningProcess(queue_info)
         #endif
     #enddef
 
@@ -209,13 +213,22 @@ class PicturedetectorDaemon(Daemon):
         learn_file = self._createImageFileName(picture_set, image_learn_file_suffix)
         validate_file = self._createImageFileName(picture_set, image_validate_file_suffix)
         
+        # Vytvoreni potrebnych adresaru dle konfigurace
+        dir = os.path.dirname(learn_file)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+            
+        dir = os.path.dirname(validate_file)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+            
         # Otevrit soubory pro zapis
-        f_learn = fopen(learn_file, 'w')
-        if not f:
+        f_learn = open(learn_file, 'w')
+        if not f_learn:
             raise self.ProcessException("Nemuzu vytvorit soubor s obrazky (" + learn_file + ")!")
         
-        f_validate = fopen(validate_file, 'w')
-        if not f:
+        f_validate = open(validate_file, 'w')
+        if not f_validate:
             raise self.ProcessException("Nemuzu vytvorit soubor s obrazky (" + validate_file + ")!")
         
         createdFiles = {
@@ -224,6 +237,7 @@ class PicturedetectorDaemon(Daemon):
         }
         
         # nacist obrazky z picture setu
+        #TODO server objekt neni dostupny, zjistit proc. Nelze naincludovat
         pictures = server.globals.rpcObjects['picture'].list(picture_set, bypass_rpc_status_decorator=True)
         
         # prochazeni obrazku a ukladani do prislusnych souboru
@@ -250,7 +264,7 @@ class PicturedetectorDaemon(Daemon):
         path = self.config.caffe.image_file_path
         prefix = self.config.caffe.image_file_prefix
         
-        filename = path + prefix + picture_set + suffix
+        filename = path + prefix + str(picture_set) + suffix
         
         return filename
     #enddef
