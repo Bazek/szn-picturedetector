@@ -1,19 +1,19 @@
 #!/usr/bin/env sh
 
-# todo fix this path
-TOOLS=../../build/tools
-
-train_args = ""
+TOOLS=/www/picturedetector/caffe/build/tools
+TRAIN_ARGS=""
 
 # model configuration
-if [ -n "$1"  ] then
-	train_args = "-solver=$1"
+if [ -n "$1"  ]; then
+    TRAIN_ARGS="-solver=$1"
+fi
 
 # start iteration file
-if [ -n "$2"  ] then
-	train_args = "$train_args --snapshot=$2"
+if [ -n "$2"  ]; then
+    TRAIN_ARGS="$TRAIN_ARGS --snapshot=$2"
+fi
 
-$TOOLS/caffe train $train_args
+$TOOLS/caffe train $TRAIN_ARGS
 
 echo "Done."
 

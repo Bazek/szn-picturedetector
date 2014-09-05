@@ -2,8 +2,8 @@
 # Create the imagenet leveldb inputs
 # N.B. set the path to the imagenet train + val data dirs
 
-TOOLS=../../build/tools
-DATA=../../data/ilsvrc12
+TOOLS=/www/picturedetector/caffe/build/tools
+DATA=/www/picturedetector/caffe/gen
 
 TRAIN_DATA=$1
 VAL_DATA=$2
@@ -38,16 +38,16 @@ fi
 echo "Creating train leveldb..."
 
 GLOG_logtostderr=1 $TOOLS/convert_imageset.bin \
-    /home/hol/seznam-obrazky/ \
-    $DATA/train.txt \
+    / \
+    $TRAIN_DATA \
     $IMAGENET_TRAIN_NAME 1
     $RESIZE_HEIGHT $RESIZE_WIDTH
 
 echo "Creating val leveldb..."
 
 GLOG_logtostderr=1 $TOOLS/convert_imageset.bin \
-    /home/hol/seznam-obrazky/ \
-    $DATA/val.txt \
+    / \
+    $VAL_DATA \
     $IMAGENET_VAL_NAME 1
     $RESIZE_HEIGHT $RESIZE_WIDTH
 

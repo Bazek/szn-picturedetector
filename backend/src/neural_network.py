@@ -71,12 +71,13 @@ class NeuralNetworkBackend(Backend):
                     string train_db_path            cesta k slozce s trenovacimi obrazky
                     string validate_db_path         cesta k slozce s validovanymi obrazky
                     string model_config_path        cesta k souboru s konfiguraci modelu
+                    string solver_config_path       cesta k souboru s konfiguraci pro uceni
                 }
             }
         """
 
         query = """
-            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file_path, neural_network.train_db_path, neural_network.validate_db_path, model.model_config_path
+            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file_path, neural_network.train_db_path, neural_network.validate_db_path, model.model_config_path, model.solver_config_path
             FROM neural_network
             JOIN model ON neural_network.model_id = model.id
             WHERE neural_network.id = %s
@@ -111,12 +112,13 @@ class NeuralNetworkBackend(Backend):
                     string train_db_path            cesta k slozce s trenovacimi obrazky
                     string validate_db_path         cesta k slozce s validovanymi obrazky
                     string model_config_path        cesta k souboru s konfiguraci modelu
+                    string solver_config_path       cesta k souboru s konfiguraci pro uceni
                 }
             }
         """
 
         query = """
-            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file_path, neural_network.train_db_path, neural_network.validate_db_path, model.model_config_path
+            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file_path, neural_network.train_db_path, neural_network.validate_db_path, model.model_config_path, model.solver_config_path
             FROM neural_network
             JOIN model ON neural_network.model_id = model.id
         """
