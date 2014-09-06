@@ -15,8 +15,10 @@ import MySQLdb.cursors
 import MySQLdb.connections
 import psutil
 import os.path
+import signal
 import subprocess
 import shutil
+import re
 
 class PicturedetectorDaemonConfig(DaemonConfig):
 
@@ -39,11 +41,14 @@ class PicturedetectorDaemonConfig(DaemonConfig):
             self.pid_file = parser.get(section, "PidFile")
             self.learn_script = parser.get(section, "LearnScript")
             self.create_imagenet_script = parser.get(section, "CreateImagenetScript")
-            self.save_file_prefix = parser.get(section, "SaveFilePrefix")
+            self.save_file_path = parser.get(section, "SaveFilePath")
             self.image_file_path = parser.get(section, "ImageFilePath")
             self.image_file_prefix = parser.get(section, "ImageFilePrefix")
             self.image_learn_file_suffix = parser.get(section, "ImageLearnFileSuffix")
-            self.image_validate_file_suffix = parser.get(section, "ImageValidateFileSuffix")      
+            self.image_validate_file_suffix = parser.get(section, "ImageValidateFileSuffix")
+            self.learn_output_path = parser.get(section, "LearnOutputPath")
+            self.learn_outout_prefix = parser.get(section, "LearnOutputPrefix")
+            
         #enddef
     #endclass
 
@@ -69,6 +74,12 @@ class PicturedetectorDaemon(Daemon):
     DB_TRAINING = 'training'
     DB_VALIDATION = 'validation'
     DB_TESTING = 'testing'
+    SAVE_FILE_PREFIX = '_iter_'
+    SOLVER_EXT = '.solverstate'
+    ACCURACY = 'accuracy'
+    LOSS = 'loss'
+    SNAPSHOT = 'snapshot'
+    KILL_SIGNAL = signal.SIGTERM
     
     def __learningInProgress(self):
         pid = self._readPid()
@@ -97,7 +108,7 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
     def __startLearningProcess(self, queue_info):
-        dbg.log("Start learning network with id " + queue_info['neural_network_id'], INFO=3)
+        dbg.log("Start learning network with id " + str(queue_info['neural_network_id']), INFO=3)
         cursor = self.config.db.cursor(MySQLdb.cursors.DictCursor)
         
         # Aktualizujeme zaznam v databazi
@@ -137,7 +148,7 @@ class PicturedetectorDaemon(Daemon):
         os.remove(pid_file)
         
         # Zastaveni processu
-        os.kill(pid, signal.SIGQUIT)
+        os.kill(pid, self.KILL_SIGNAL)
         
         return True
     #enddef
@@ -170,7 +181,7 @@ class PicturedetectorDaemon(Daemon):
         f.write(str(pid))
         f.close()
 
-    def _startCaffeLearning(self, neural_network, picture_set, startIteration = 0):
+    def _startCaffeLearning(self, neural_network_id, picture_set, startIteration = 0):
         learn_script = self.config.caffe.learn_script
         create_imagenet_script = self.config.caffe.create_imagenet_script
                 
@@ -179,14 +190,30 @@ class PicturedetectorDaemon(Daemon):
         
         # Nacteni informaci o neuronvoe siti
         #network = server.globals.rpcObjects['neural_network'].get(neural_network, bypass_rpc_status_decorator=True)
-        network = self.neural_network_get(neural_network)
+        network = self.neural_network_get(neural_network_id)
         
         # Vymazat stare uloznene obrazky pokud existuji
         if os.path.exists(network['train_db_path']):
             shutil.rmtree(network['train_db_path'])
+        #endif
             
         if os.path.exists(network['validate_db_path']):
             shutil.rmtree(network['validate_db_path'])
+        #endif
+        
+        # Otevreni souboru pro zapis 
+        learn_log_path = self._getLearnLogPath(network['id'])
+        if startIteration == 0:
+            file_mode = 'w'
+        else:
+            file_mode = 'a'
+        #endif
+        
+        dbg.log('Learning log: ' + learn_log_path, INFO=3)
+        learn_log = open(learn_log_path, file_mode)
+        if not learn_log:
+            raise self.ProcessException("Nemuzu vytvorit soubor s logem uceni (" + learn_log_path + ")!")
+        #endif
         
         # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni databaze obrazku. Prvni parametr je cesta ke skriptu
         create_args = []
@@ -195,7 +222,7 @@ class PicturedetectorDaemon(Daemon):
         create_args.append(picture_files[self.VALIDATE])
         create_args.append(network['train_db_path'])
         create_args.append(network['validate_db_path'])
-
+        
         # Vytvorit imagenet pomoci souboru s obrazky a zadanych cest kde se maji vytvorit
         subprocess.call(create_args)
         
@@ -205,12 +232,23 @@ class PicturedetectorDaemon(Daemon):
         learn_args.append(network['solver_config_path'])
         
         if startIteration:
-            saveFilePrefix = self.config.caffe.save_file_prefix
-            learn_args.append(saveFilePrefix+startIteration)
+            save_file_path = self.config.caffe.save_file_path
+            config = self._getPrototxtConfigValue(network['solver_config_path'], 'snapshot_prefix')
+            
+            if not config['snapshot_prefix']:
+                raise self.ProcessException("Nepodarilo se precist prefix nazvu souboru s ulozenym ucenim (" + network['solver_config_path'] + ")!")
+            #endif
+            
+            dbg.log("Prefix souboru s ulozenym ucenim: " + config['snapshot_prefix'], INFO=3)
+            
+            saved_file_path = os.path.join(save_file_path, config['snapshot_prefix'] + self.SAVE_FILE_PREFIX + str(startIteration) + self.SOLVER_EXT)
+            learn_args.append(saved_file_path)
+        #endif
         
-        p = subprocess.Popen(learn_args)
+        p = subprocess.Popen(learn_args, stderr=learn_log)
         if p:
             return p.pid
+        #endif
         
         return False
     #enddef
@@ -226,6 +264,8 @@ class PicturedetectorDaemon(Daemon):
 
         if queue_info:
             self.__startLearningProcess(queue_info)
+            #TODO delete
+            dbg.log(str(self._learningStatus(queue_info['neural_network_id'])), INFO=3)
         #endif
     #enddef
 
@@ -239,19 +279,23 @@ class PicturedetectorDaemon(Daemon):
         dir = os.path.dirname(learn_file)
         if not os.path.exists(dir):
             os.makedirs(dir)
-            
+        #endif
+        
         dir = os.path.dirname(validate_file)
         if not os.path.exists(dir):
             os.makedirs(dir)
-            
+        #endif
+        
         # Otevrit soubory pro zapis
         f_learn = open(learn_file, 'w')
         if not f_learn:
-            raise self.ProcessException("Nemuzu vytvorit soubor s obrazky (" + learn_file + ")!")
+            raise self.ProcessException("Nemuzu vytvorit databazi s obrazky (" + learn_file + ")!")
+        #endif
         
         f_validate = open(validate_file, 'w')
         if not f_validate:
-            raise self.ProcessException("Nemuzu vytvorit soubor s obrazky (" + validate_file + ")!")
+            raise self.ProcessException("Nemuzu vytvorit databazi s obrazky (" + validate_file + ")!")
+        #endif
         
         createdFiles = {
             self.TRAIN: learn_file,
@@ -285,7 +329,7 @@ class PicturedetectorDaemon(Daemon):
         path = self.config.caffe.image_file_path
         prefix = self.config.caffe.image_file_prefix
         
-        filename = path + '/' + prefix + str(picture_set) + suffix
+        filename = os.path.join(path, prefix + str(picture_set) + suffix)
         
         return filename
     #enddef
@@ -339,7 +383,7 @@ class PicturedetectorDaemon(Daemon):
                 string statusMessage                Textovy popis stavu
                 struct data {
                     integer id                      neural network id
-                    integer model_id                 model id
+                    integer model_id                model id
                     string description              description
                     string pretrained_model_path    cesta k predtrenovanemu modelu
                     string mean_file_path           cesta k mean file souboru
@@ -391,7 +435,96 @@ class PicturedetectorDaemon(Daemon):
         #endif
         return FILTER
     #enddef
-
+    
+    def _getPrototxtConfigValue(self, filepath, variables):
+        # Prevedeni jednoho prvku na pole
+        if not isinstance(variables, list):
+            variables = [variables]
+        #endif
+        
+        # Priprava navratove hodnoty
+        results = {}
+        for var in variables:
+            results[var] = False
+        
+        # Otevreni konfiguracniho souboru
+        file = open(filepath, 'r')
+        if not file:
+            raise self.ProcessException("Soubor s konfiguraci neexistuje (" + filepath + ")!")
+        #endif
+        
+        # Cteni konfiguracniho souboru
+        for line in file:
+            for var in variables:
+                m = re.match(r"(" + var + "\s*):\s*(?:(?:[\"'](.*)[\"'])|([^\"'].*))\s*", line, flags=re.IGNORECASE)
+                if m:
+                    results[m.group(1)] = m.group(2)
+                    
+        file.close()
+        return results
+    #enddef
+    
+    def _learningStatus(self, neural_network_id):
+        log_path = self._getLearnLogPath(neural_network_id)
+        dbg.log(log_path, INFO=3)
+        # Otevreni souboru s logem uceni
+        file = open(log_path, 'r')
+        if not file:
+            raise self.ProcessException("Logovaci soubor uceni neexistuje (" + log_path + ")!")
+        #endif
+        
+        # Priprava navratove hodnoty
+        results = {}
+        act_iteration = False
+        has_snapshot = False
+        
+        # Cteni konfiguracniho souboru
+        for line in file:
+            # V souboru jsme nasli ze byl vytvoreny snapshot (plati pro cislo iterace uvedene pod nim)
+            m_snapshot = re.search("Snapshotting\s+solver\s+state\s+to", line, flags=re.IGNORECASE)
+            if m_snapshot:
+                has_snapshot = True
+            #endif
+            
+            # V souboru jsme nasli cislo testovane iterace
+            m_iter = re.search("Iteration\s+(\d+),\s+Testing\s+net", line, flags=re.IGNORECASE)
+            if m_iter:
+                act_iteration = int(m_iter.group(1))
+                results[act_iteration] = {
+                    self.ACCURACY: 0.0,
+                    self.LOSS: 0.0,
+                    self.SNAPSHOT: has_snapshot
+                }
+                
+                has_snapshot = False
+            #endif
+            
+            # V souboru jsme nasli vysledky pro testovanou iteraci
+            m_result = re.search("Test\s+score\s+#(\d+):\s*((?:(?:[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)|nan))", line, flags=re.IGNORECASE)
+            if m_result:
+                value = m_result.group(2)
+                if value == 'nan':
+                    value = 0
+                #endif
+                
+                value = float(value)
+                
+                if act_iteration:
+                    if m_result.group(1) == '0':
+                        results[act_iteration][self.ACCURACY] = value
+                    elif m_result.group(1) == '1':
+                        results[act_iteration][self.LOSS] = value
+                    #endif
+                #endif
+            #endif
+            
+        file.close()
+        return results
+    #enddef
+    
+    def _getLearnLogPath(self, neural_network_id):
+        log_path = os.path.join(self.config.caffe.learn_output_path, self.config.caffe.learn_outout_prefix + str(neural_network_id))
+        return log_path
 #endclass
 
 
