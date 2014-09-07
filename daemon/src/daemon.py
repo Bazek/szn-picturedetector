@@ -19,6 +19,8 @@ import signal
 import subprocess
 import shutil
 import re
+import caffe
+from caffe.proto import caffe_pb2
 
 class PicturedetectorDaemonConfig(DaemonConfig):
 
@@ -41,6 +43,7 @@ class PicturedetectorDaemonConfig(DaemonConfig):
             self.pid_file = parser.get(section, "PidFile")
             self.learn_script = parser.get(section, "LearnScript")
             self.create_imagenet_script = parser.get(section, "CreateImagenetScript")
+            self.create_mean_file_script = parser.get(section, "CreateMeanFileScript")
             self.save_file_path = parser.get(section, "SaveFilePath")
             self.image_file_path = parser.get(section, "ImageFilePath")
             self.image_file_prefix = parser.get(section, "ImageFilePrefix")
@@ -48,7 +51,10 @@ class PicturedetectorDaemonConfig(DaemonConfig):
             self.image_validate_file_suffix = parser.get(section, "ImageValidateFileSuffix")
             self.learn_output_path = parser.get(section, "LearnOutputPath")
             self.learn_outout_prefix = parser.get(section, "LearnOutputPrefix")
-            
+            self.mean_file_path = parser.get(section, "MeanFilePath")
+            self.mean_file_prefix = parser.get(section, "MeanFilePrefix")
+            self.mean_learn_file_suffix = parser.get(section, "MeanLearnFileSuffix")
+            self.mean_validate_file_suffix = parser.get(section, "MeanValidateFileSuffix")
         #enddef
     #endclass
 
@@ -74,13 +80,24 @@ class PicturedetectorDaemon(Daemon):
     DB_TRAINING = 'training'
     DB_VALIDATION = 'validation'
     DB_TESTING = 'testing'
+    
+    # caffe vklada tuto constantu pri ukladani stavu uceni
     SAVE_FILE_PREFIX = '_iter_'
+    
+    # koncovka souboru s konfiguraci solveru
     SOLVER_EXT = '.solverstate'
+    
+    # koncovka mean file souboru
+    MEAN_FILE_EXT = '.binaryproto'
+    
+    # Konstanty, ktere slouzi jako klice do pole se statistikami uceni
     ACCURACY = 'accuracy'
     LOSS = 'loss'
     SNAPSHOT = 'snapshot'
-    KILL_SIGNAL = signal.SIGTERM
     
+    # Signal, ktery se posle podprocesu v pripade ze daemon dostal signal pro ukonceni
+    KILL_SIGNAL = signal.SIGTERM
+
     def __learningInProgress(self):
         pid = self._readPid()
         if pid:
@@ -184,6 +201,7 @@ class PicturedetectorDaemon(Daemon):
     def _startCaffeLearning(self, neural_network_id, picture_set, startIteration = 0):
         learn_script = self.config.caffe.learn_script
         create_imagenet_script = self.config.caffe.create_imagenet_script
+        create_mean_file_script = self.config.caffe.create_mean_file_script
                 
         # Ziskat picture set a vygenerovat soubory s cestami k obrazkum (validacni a ucici)
         picture_files = self._createFilesWithImages(picture_set)
@@ -208,7 +226,7 @@ class PicturedetectorDaemon(Daemon):
         else:
             file_mode = 'a'
         #endif
-        
+                
         dbg.log('Learning log: ' + learn_log_path, INFO=3)
         learn_log = open(learn_log_path, file_mode)
         if not learn_log:
@@ -226,6 +244,28 @@ class PicturedetectorDaemon(Daemon):
         # Vytvorit imagenet pomoci souboru s obrazky a zadanych cest kde se maji vytvorit
         subprocess.call(create_args)
         
+        # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni mean souboru obrazku pro trenovaci obrazky
+        mean_learn_file_suffix = self.config.caffe.mean_learn_file_suffix
+        mean_train_file_path = self._createMeanFileName(network['id'], mean_learn_file_suffix)
+        create_mean_file_args = []
+        create_mean_file_args.append(create_mean_file_script)
+        create_mean_file_args.append(network['train_db_path'])
+        create_mean_file_args.append(mean_train_file_path)
+        
+        # Vytvorit mean file pro trenovaci obrazky
+        subprocess.call(create_mean_file_args)
+        
+        # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni mean souboru obrazku pro validacni obrazky
+        mean_validate_file_suffix = self.config.caffe.mean_validate_file_suffix
+        mean_validate_file_path = self._createMeanFileName(network['id'], mean_validate_file_suffix)
+        create_mean_file_args = []
+        create_mean_file_args.append(create_mean_file_script)
+        create_mean_file_args.append(network['validate_db_path'])
+        create_mean_file_args.append(mean_validate_file_path)
+        
+        # Vytvorit mean file pro validacni obrazky
+        subprocess.call(create_mean_file_args)
+
         # Vytvoreni argumentu pro spusteni skriptu pro uceni neuronove site. Prvni parametr je cesta ke skriptu
         learn_args = []
         learn_args.append(learn_script)
@@ -233,6 +273,9 @@ class PicturedetectorDaemon(Daemon):
         
         if startIteration:
             save_file_path = self.config.caffe.save_file_path
+            #TODO zjistit jak precist hodnoty z prototxt souboru
+            #solver_config = self._readProtoSolverFile(network['solver_config_path'])
+            #dbg.log(str(solver_config), INFO=3)
             config = self._getPrototxtConfigValue(network['solver_config_path'], 'snapshot_prefix')
             
             if not config['snapshot_prefix']:
@@ -328,9 +371,14 @@ class PicturedetectorDaemon(Daemon):
     def _createImageFileName(self, picture_set, suffix = ""):
         path = self.config.caffe.image_file_path
         prefix = self.config.caffe.image_file_prefix
-        
         filename = os.path.join(path, prefix + str(picture_set) + suffix)
-        
+        return filename
+    #enddef
+    
+    def _createMeanFileName(self, picture_set, suffix = ""):
+        path = self.config.caffe.mean_file_path
+        prefix = self.config.caffe.mean_file_prefix
+        filename = os.path.join(path, prefix + str(picture_set) + suffix + self.MEAN_FILE_EXT)
         return filename
     #enddef
     
@@ -462,6 +510,31 @@ class PicturedetectorDaemon(Daemon):
                     
         file.close()
         return results
+    #enddef
+    
+    def _readProtoLayerFile(self, filepath):
+        #TODO pujde pouzit tato  konstanta na zavolani tridy? caffe_pb2
+        #self.config.caffe.proto_config_class
+        layers_config = caffe.proto.caffe_pb2.NetParameter
+        return self._readProtoFile(filepath, layers_config)
+    #enddef
+    
+    def _readProtoSolverFile(self, filepath):
+        solver_config = caffe.proto.caffe_pb2.SolverParameter()
+        #TODO how to read proto file?
+        #caffe.ReadProtoFromTextFile(filepath, data)
+        return self._readProtoFile(filepath, solver_config)
+    #enddef
+    
+    def _readProtoFile(self, filepath, parser_object):
+        file = open(filepath, "rb")
+        if not file:
+            raise self.ProcessException("Soubor s konfiguraci vrstev neuronove site neexistuje (" + filepath + ")!")
+        
+        parser_object.ParseFromString(file.read())
+        file.close()
+        
+        return parser_object
     #enddef
     
     def _learningStatus(self, neural_network_id):

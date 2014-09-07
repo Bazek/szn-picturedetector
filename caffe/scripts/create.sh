@@ -3,7 +3,6 @@
 # N.B. set the path to the imagenet train + val data dirs
 
 TOOLS=/www/picturedetector/caffe/build/tools
-DATA=/www/picturedetector/caffe/gen
 
 TRAIN_DATA=$1
 VAL_DATA=$2
