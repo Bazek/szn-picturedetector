@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 
 
+import sys
+sys.path.insert(0, '/www/picturedetector/common/module/')
+
 import metaserver.fastrpc as server
 
 from rpc_backbone.wrappers import RpcServerWrapper
@@ -14,6 +17,7 @@ from neural_network import NeuralNetworkBackend
 from picture import PictureSetBackend, PictureBackend
 from classify import ClassifyBackend
 from model import ModelBackend
+
 
 def init(cfg):
     # Nacitani konfigurace

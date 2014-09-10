@@ -1,0 +1,17 @@
+Source: szn-picturedetector-common
+Section: picturedetector/Seznam
+Priority: optional
+Maintainer: Petr Bartunek <petr.bartunek@firma.seznam.cz>
+Build-Depends: szn-debhelper
+Standards-Version: 3.7.2.2
+
+Package: szn-picturedetector-common
+Architecture: all
+Section: picturedetector/Seznam
+Depends: ${shlibs:Depends}, ${misc:Depends}, python
+Description: Bootstrapped package common
+ This is a newly bootstrapped package for common.
+ .
+ If this description appears in repository, something went wrong. Please
+ contact the package's maintainer.
+

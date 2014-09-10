@@ -8,6 +8,9 @@
 #
 
 
+import sys
+sys.path.insert(0, '/www/picturedetector/common/module/')
+
 from szn_utils.daemon import DaemonConfig, Daemon
 from dbglog import dbg
 
@@ -22,6 +25,7 @@ import re
 
 from caffe.proto import caffe_pb2
 from google.protobuf import text_format
+
 
 class PicturedetectorDaemonConfig(DaemonConfig):
 

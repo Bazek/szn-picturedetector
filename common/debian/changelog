@@ -1,0 +1,6 @@
+szn-picturedetector-common (0.1.0) Seznam; urgency=low
+
+  * bootstrapped using szn-bootstrap
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 10 Sep 2014 15:09:44 +0200
+

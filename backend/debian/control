@@ -9,6 +9,7 @@ Package: szn-picturedetector-backend
 Architecture: all
 Section: picturedetector/Seznam
 Depends: ${shlibs:Depends}, ${misc:Depends}, python, python-dbglog, python-mysqldb, python-fastrpc, python-crypto,
-    szn-python-mysqldbwrapper, szn-metaserver-python-fastrpc, szn-rpc-backbone, szn-python-utils, szn-logy
+    szn-picturedetector-common, szn-python-mysqldbwrapper, szn-metaserver-python-fastrpc,
+    szn-rpc-backbone, szn-python-utils, szn-logy
 Description: Backend Server for picturedetector
  .
