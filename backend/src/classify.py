@@ -61,10 +61,10 @@ class ClassifyBackend(Backend):
         model_config_path = network['model_config_path']
         pretrained_model_path = network['pretrained_model_path']
 
-        solver_config = self._readProtoSolverFile(network['solver_config_path'])
+        solver_config = server.globals.rpcObjects['solver_config'].get(neural_network_id, bypass_rpc_status_decorator=True)
     
         # Parsovani cest ze souboru imagenet_train_val.prototxt
-        layer_config = self._readProtoLayerFile(solver_config.net)
+        layer_config = self._readProtoLayerFile(solver_config['net'])
         layer_paths = self._parseLayerPaths(layer_config)
         mean_file_path = layer_paths[self.TRAIN][self.MEAN_FILE]
         

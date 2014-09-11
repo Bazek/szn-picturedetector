@@ -17,6 +17,7 @@ from neural_network import NeuralNetworkBackend
 from picture import PictureSetBackend, PictureBackend
 from classify import ClassifyBackend
 from model import ModelBackend
+from solver_config import SolverConfigBackend
 
 
 def init(cfg):
@@ -35,6 +36,7 @@ def init(cfg):
         'picture': PictureBackend(server),
         'classify': ClassifyBackend(server),
         'model': ModelBackend(server),
+        'solver_config': SolverConfigBackend(server),
     }
     # Monitorovaci metoda
     server.registerHEADMethod(head)

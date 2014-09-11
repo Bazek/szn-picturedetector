@@ -11,7 +11,6 @@
 import sys
 sys.path.insert(0, '/www/picturedetector/common/module/')
 
-
 from szn_utils.configutils import ConfigBox
 from szn_utils.daemon import DaemonConfig, Daemon
 from dbglog import dbg
@@ -24,10 +23,11 @@ import signal
 import subprocess
 import shutil
 import re
+import szn_utils
 
 from caffe.proto import caffe_pb2
 from google.protobuf import text_format
-
+from google.protobuf import descriptor
 
 class PicturedetectorDaemonConfig(DaemonConfig):
 
@@ -58,16 +58,14 @@ class PicturedetectorDaemonConfig(DaemonConfig):
             self.image_validate_file_suffix = parser.get(section, "ImageValidateFileSuffix")
             self.learn_output_path = parser.get(section, "LearnOutputPath")
             self.learn_outout_prefix = parser.get(section, "LearnOutputPrefix")
+            self.solver_file_path = parser.get(section, "SolverFilePath")
+            self.solver_file_prefix = parser.get(section, "SolverFilePrefix")           
         #enddef
     #endclass
 
 
     def reload(self):
         super(PicturedetectorDaemonConfig, self).reload()
-        self.db = self.DbConnection(self.parser, "mysql-master")
-        cursor = self.db.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute("SET AUTOCOMMIT=1")
-        cursor.close()
         self.backend = ConfigBox(self.parser, "backend")
         self.caffe = self.CaffeConfig(self.parser, "caffe")
     #enddef
@@ -127,28 +125,16 @@ class PicturedetectorDaemon(Daemon):
     
     def __getNextNeuralNetwork(self):
         # Precteme z databaze dalsi neuronovou sit pripravenou ve fronte k uceni
-        cursor = self.config.db.cursor(MySQLdb.cursors.DictCursor)
-        query = "SELECT neural_network_id, picture_set_id, start_iteration FROM learning_queue WHERE status = 'waiting'"
-        cursor.execute(query)
-        queue_info = cursor.fetchone()
-        cursor.close()
-        return queue_info
+        result = self.config.backend.proxy.neural_network.getNextLearningNetwork()
+        dbg.log(str(result), INFO=3)
+        return result['data']
     #enddef
     
     def __startLearningProcess(self, queue_info):
         dbg.log("Start learning network with id " + str(queue_info['neural_network_id']), INFO=3)
-        cursor = self.config.db.cursor(MySQLdb.cursors.DictCursor)
-        
-        # Aktualizujeme zaznam v databazi
-        
-        # TODO delete
-        #network = self.neural_network_get(queue_info['neural_network_id'])
-        #solver_config = self._readProtoSolverFile(network['solver_config_path'])
-        
-        query = "UPDATE learning_queue SET status = 'learning' WHERE neural_network_id = %s";
-        cursor.execute(query, queue_info['neural_network_id'])
-        #self.config.db.commit()
-        cursor.close()
+
+        # Aktualizujeme zaznam v databazi        
+        self.config.backend.proxy.neural_network.setLearningNetwork(queue_info['neural_network_id'])
         
         pid = self._startCaffeLearning(queue_info['neural_network_id'], queue_info['picture_set_id'], queue_info['start_iteration'])
         if pid:
@@ -160,7 +146,6 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
     def __stopLearningProcess(self):
-        cursor = self.config.db.cursor(MySQLdb.cursors.DictCursor)
         dbg.log("STOP LEARNING!", INFO=3)
         
         # Zastavime ucici proces
@@ -172,17 +157,15 @@ class PicturedetectorDaemon(Daemon):
         pid = self._readPid()
 
         # Odstraneni zaznamu v databazi
-        query = "DELETE FROM learning_queue WHERE status = 'learning'";
-        cursor.execute(query)
-        #self.config.db.commit()
-        cursor.close()
-        
+        self.config.backend.proxy.neural_network.deleteLearningNetwork()
+            
         # Odstraneni souboru s bezicim PID
         pid_file = self.config.caffe.pid_file
         if os.path.isfile(pid_file):
             os.remove(pid_file)
         else:
             dbg.log('PID soubor uceni neexistuje', INFO=3)
+            return False
         #endif
         
         # Zastaveni processu
@@ -223,17 +206,21 @@ class PicturedetectorDaemon(Daemon):
         learn_script = self.config.caffe.learn_script
         create_imagenet_script = self.config.caffe.create_imagenet_script
         create_mean_file_script = self.config.caffe.create_mean_file_script
-        
-        # Nacteni informaci o neuronvoe siti
-        #network = server.globals.rpcObjects['neural_network'].get(neural_network, bypass_rpc_status_decorator=True)
-        network = self.neural_network_get(neural_network_id)  
-        
-        # Cteni souboru imagenet_solver.prototxt
         save_file_path = self.config.caffe.save_file_path
-        solver_config = self._readProtoSolverFile(network['solver_config_path'])
+        
+        # Nacteni informaci o neuronove siti
+        result = self.config.backend.proxy.neural_network.get(neural_network_id)
+        network = result['data']
+        
+        # Cteni konfigurace solveru z databaze
+        result = self.config.backend.proxy.solver_config.get(network['id'])
+        solver_config = result['data']
+        
+        #TODO fix calling
+        solver_config_path = self._getSolverPath(network['id'])
         
         # Parsovani cest ze souboru imagenet_train_val.prototxt
-        layer_config = self._readProtoLayerFile(solver_config.net)
+        layer_config = self._readProtoLayerFile(solver_config['net'])
         layer_paths = self._parseLayerPaths(layer_config)
         dbg.log("PARSE PATHS: " + str(layer_paths), INFO=3)
         # Ziskat picture set a vygenerovat soubory s cestami k obrazkum (validacni a ucici)
@@ -290,21 +277,24 @@ class PicturedetectorDaemon(Daemon):
         
         # Vytvorit mean file pro validacni obrazky
         subprocess.call(create_mean_file_args)
-
+        
+        # Vytvoreni solver souboru pro uceni
+        self._generateSolverFile(solver_config_path, network['id'])
+        
         # Vytvoreni argumentu pro spusteni skriptu pro uceni neuronove site. Prvni parametr je cesta ke skriptu
         learn_args = []
         learn_args.append(learn_script)
         learn_args.append('train')
-        learn_args.append('-solver=' + network['solver_config_path'])
-            
+        learn_args.append('-solver=' + solver_config_path)
+        
         if startIteration:
-            if not solver_config.snapshot_prefix:
-                raise self.ProcessException("Nepodarilo se precist prefix nazvu souboru s ulozenym ucenim (" + network['solver_config_path'] + ")!")
+            if not solver_config['snapshot_prefix']:
+                raise self.ProcessException("Nepodarilo se precist prefix nazvu souboru s ulozenym ucenim (" + solver_config['snapshot_prefix'] + ")!")
             #endif
 
-            dbg.log("Prefix souboru s ulozenym ucenim: " + solver_config.snapshot_prefix, INFO=3)
+            dbg.log("Prefix souboru s ulozenym ucenim: " + solver_config['snapshot_prefix'], INFO=3)
             
-            saved_file_path = os.path.join(save_file_path, solver_config.snapshot_prefix + self.SAVE_FILE_PREFIX + str(startIteration) + self.SOLVER_EXT)
+            saved_file_path = os.path.join(save_file_path, solver_config['snapshot_prefix'] + self.SAVE_FILE_PREFIX + str(startIteration) + self.SOLVER_EXT)
             learn_args.append('-snapshot=' + saved_file_path)
         #endif
         
@@ -317,8 +307,6 @@ class PicturedetectorDaemon(Daemon):
     #enddef
         
     def _processIteration(self):
-        #TODO proc potrebuje databaze obnovovat, aby se nacetly aktualni data???
-        #self.config.reload()
         if self.__learningInProgress():
             dbg.log("Learning still in progress", INFO=2)
             return
@@ -366,7 +354,8 @@ class PicturedetectorDaemon(Daemon):
         }
         
         # nacist obrazky z picture setu
-        pictures = self.picture_list(picture_set)
+        result = self.config.backend.proxy.picture.list(picture_set)
+        pictures = result['data']
 
         # prochazeni obrazku a ukladani do prislusnych souboru
         for picture in pictures:
@@ -394,83 +383,69 @@ class PicturedetectorDaemon(Daemon):
         filename = os.path.join(path, prefix + str(picture_set) + suffix)
         return filename
     #enddef
-    
-    #TODO duplikovana metoda
-    def picture_list(self, picture_set_id, params={}):
-        cursor = self.config.db.cursor(MySQLdb.cursors.DictCursor)
-        
-        # Kontrola parametru
-        if "learning_set" in params and params["learning_set"] not in self.config.pictures.learning_set_paths:
-            raise Exception(402, "Unknown learning_set: %s" % params["learning_set"])
-        #endif
-        if "learning_subset" in params and params["learning_subset"] not in ("true", "false"):
-            raise Exception(402, "Unknown learning_subset: %s" % params["learning_subset"])
-        #endif
 
-        filterDict = {
-            "picture_set_id":   "picture_set_id = %(picture_set_id)s",
-            "learning_set":     "learning_set = %(learning_set)s",
-            "learning_subset":  "learning_subset = %(learning_subset)s",
+    def _generateSolverFile(self, filepath, neural_network_id):
+        # Cteni konfigurace solveru z databaze
+        result = self.config.backend.proxy.solver_config.get(neural_network_id)
+        config = result['data']
+        
+        solver_proto = caffe_pb2.SolverParameter()
+        
+        # Mapovani z property SolverParameter tridy na nazev databazoveho sloupecku
+        # V zasade jsou nazvy stejne, ale to se muze casem zmenit (zmena definice v caffe)
+        solver_db_mapping = {
+            'net': 'net',
+            'test_iter': 'test_iter',
+            'test_interval': 'test_interval',
+            'test_compute_loss': 'test_compute_loss',
+            'base_lr': 'base_lr',
+            'display': 'display',
+            'max_iter': 'max_iter',
+            'lr_policy': 'lr_policy',
+            'gamma': 'gamma',
+            'power': 'power',
+            'momentum': 'momentum',
+            'weight_decay': 'weight_decay',
+            'stepsize': 'stepsize',
+            'snapshot': 'snapshot',
+            'snapshot_prefix': 'snapshot_prefix',
+            'snapshot_diff': 'snapshot_diff',
+            'snapshot_after_train': 'snapshot_after_train',
+            'solver_mode': 'solver_mode',
+            'device_id': 'device_id',
+            'random_seed': 'random_seed',
+            'debug_info': 'debug_info',
         }
         
-        params["picture_set_id"] = picture_set_id
-        WHERE = self._getFilter(filterDict, params)
+        message_descriptor = solver_proto.DESCRIPTOR 
+        for solver_property in solver_db_mapping:
+            db_field = solver_db_mapping[solver_property]
+            value = config[db_field]
+            if value:
+                field = message_descriptor.fields_by_name.get(solver_property, None)
+                if field:
+                    # prevedeni enum value z retezce na int
+                    if field.type == descriptor.FieldDescriptor.TYPE_ENUM:
+                        value = field.containing_type.enum_values_by_name[value].number
+                        dbg.log(str(value), INFO=3)
+                        
+                    if field.label == descriptor.FieldDescriptor.LABEL_REPEATED: 
+                        property = getattr(solver_proto, solver_property)
+                        property.append(value)
+                    else: 
+                        setattr(solver_proto, solver_property, value)
+                    #endif
+                #endif
+            #endif
+        #endfor
 
-        query = """
-            SELECT `id`, `picture_set_id`, `learning_set`, `learning_subset`, `hash`
-            FROM picture
-            """ + WHERE + """
-            ORDER BY id ASC
-        """
-
-        cursor.execute(query, params)
-        pictures = cursor.fetchall()
-        cursor.close()
-
-        return pictures
-    #enddef
-    
-    #TODO duplikovana metoda
-    def neural_network_get(self, id):
-        """
-        Funkce pro precteni dat o neuronove siti dle zadaneho ID neuronove site
-
-        Signature:
-            neural_network.get(integer id)
-
-        @id                 neural_network_id
-
-        Returns:
-            struct {
-                int status                          200 = OK
-                string statusMessage                Textovy popis stavu
-                struct data {
-                    integer id                      neural network id
-                    integer model_id                model id
-                    string description              description
-                    string pretrained_model_path    cesta k predtrenovanemu modelu
-                    string model_config_path        cesta k souboru s konfiguraci modelu
-                    string solver_config_path       cesta k souboru s konfiguraci pro uceni
-                }
-            }
-        """
-
-        cursor = self.config.db.cursor(MySQLdb.cursors.DictCursor)
-        query = """
-            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, model.model_config_path, model.solver_config_path
-            FROM neural_network
-            JOIN model ON neural_network.model_id = model.id
-            WHERE neural_network.id = %s
-        """
-        cursor.execute(query, id)
-        neural_network = cursor.fetchone()
-        cursor.close()
-        
-        if not neural_network:
-            raise Exception(404, "Neural network not found")
-        #endif
-        
-        return neural_network
+        file_content = text_format.MessageToString(solver_proto, as_utf8=True)
+        dbg.log(str(file_content), INFO=3)
+        file = open(filepath, 'w')
+        if not file:
+            raise self.ProcessException("Nemuzu vytvorit solver soubor (" + filepath + ")!")
+        file.write(file_content)
+        file.close()
     #enddef
     
     def _getFilter(self, filterDict, valuesDict, prefix="WHERE", separator=" AND ", empty=True):
@@ -496,29 +471,7 @@ class PicturedetectorDaemon(Daemon):
         return FILTER
     #enddef
     
-    #TODO duplikovana metoda
-    def _readProtoLayerFile(self, filepath):
-        layers_config = caffe_pb2.NetParameter()
-        return self._readProtoFile(filepath, layers_config)
-    #enddef
-    
-    #TODO duplikovana metoda
-    def _readProtoSolverFile(self, filepath):
-        solver_config = caffe_pb2.SolverParameter()
-        return self._readProtoFile(filepath, solver_config)
-    #enddef
-    
-    #TODO duplikovana metoda
-    def _readProtoFile(self, filepath, parser_object):
-        file = open(filepath, "r")
-        if not file:
-            raise self.ProcessException("Soubor s konfiguraci vrstev neuronove site neexistuje (" + filepath + ")!")
 
-        text_format.Merge(str(file.read()), parser_object)
-        file.close()
-        return parser_object
-    #enddef
-    
     def _learningStatus(self, neural_network_id):
         log_path = self._getLearnLogPath(neural_network_id)
         dbg.log(log_path, INFO=3)
@@ -581,21 +534,53 @@ class PicturedetectorDaemon(Daemon):
         log_path = os.path.join(self.config.caffe.learn_output_path, self.config.caffe.learn_outout_prefix + str(neural_network_id))
         return log_path
     #enddef
+
+#
+#
+#
+#TODO DELETE
+# vvvvvvvv
+#
+#
     
-    #TODO duplikovana metoda
+    def _readProtoLayerFile(self, filepath):
+        layers_config = caffe_pb2.NetParameter()
+        return self._readProtoFile(filepath, layers_config)
+    #enddef
+
+    def _readProtoSolverFile(self, filepath):
+        solver_config = caffe_pb2.SolverParameter()
+        return self._readProtoFile(filepath, solver_config)
+    #enddef
+
+    def _readProtoFile(self, filepath, parser_object):
+        file = open(filepath, "r")
+        if not file:
+            raise self.ProcessException("Soubor s konfiguraci vrstev neuronove site neexistuje (" + filepath + ")!")
+
+        text_format.Merge(str(file.read()), parser_object)
+        file.close()
+        return parser_object
+    #enddef
+
+    def _getSolverPath(self, neural_network_id):
+        solver_path = os.path.join(self.config.caffe.solver_file_path, self.config.caffe.solver_file_prefix + str(neural_network_id))
+        return solver_path
+    #enddef
+
     def _parseLayerPaths(self, proto):
         results = {}
-        
+
         results[self.TRAIN] = {
             self.SOURCE: '',
             self.MEAN_FILE: ''
         }
-        
+
         results[self.VALIDATE] = {
             self.SOURCE: '',
             self.MEAN_FILE: ''
         }
-        
+
         for layer in proto.layers:
             if layer.type == caffe_pb2.LayerParameter.LayerType.Value('DATA'):
                 include_name = False
@@ -616,7 +601,7 @@ class PicturedetectorDaemon(Daemon):
                         results[self.TRAIN][self.MEAN_FILE] = layer.data_param.mean_file
                     #endif
                 #endif
-                
+
                 if not include_name or (include_name == self.VALIDATE):
                     if layer.data_param.source:
                         results[self.VALIDATE][self.SOURCE] = layer.data_param.source
@@ -628,9 +613,13 @@ class PicturedetectorDaemon(Daemon):
                 #endif
             #endif
         #endfor
-        
+
         return results
-    #enddef
+#
+# ^^^^^^^^
+# END DELETE
+#
+
 #endclass
 
 

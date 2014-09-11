@@ -68,13 +68,12 @@ class NeuralNetworkBackend(Backend):
                     string description              description
                     string pretrained_model_path    cesta k predtrenovanemu modelu
                     string model_config_path        cesta k souboru s konfiguraci modelu
-                    string solver_config_path       cesta k souboru s konfiguraci pro uceni
                 }
             }
         """
 
         query = """
-            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, model.model_config_path, model.solver_config_path
+            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, model.model_config_path
             FROM neural_network
             JOIN model ON neural_network.model_id = model.id
             WHERE neural_network.id = %s
@@ -106,13 +105,12 @@ class NeuralNetworkBackend(Backend):
                     string description              description
                     string pretrained_model_path    cesta k predtrenovanemu modelu
                     string model_config_path        cesta k souboru s konfiguraci modelu
-                    string solver_config_path       cesta k souboru s konfiguraci pro uceni
                 }
             }
         """
 
         query = """
-            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, model.model_config_path, model.solver_config_path
+            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, model.model_config_path
             FROM neural_network
             JOIN model ON neural_network.model_id = model.id
         """
@@ -226,5 +224,48 @@ class NeuralNetworkBackend(Backend):
         return True
     #enddef
     
+    @rpcStatusDecorator('neural_network.getNextLearningNetwork', 'S:')
+    @MySQL_master
+    def getNextLearningNetwork(self):
+        query = "SELECT neural_network_id, picture_set_id, start_iteration FROM learning_queue WHERE status = 'waiting'"
+        self.cursor.execute(query)
+        queue_info = self.cursor.fetchone()
+        
+        # Prevod None na False, aby to vratilo polozku data
+        if not queue_info:
+            queue_info = False
+
+        return queue_info
+    #enddef
+    
+    @rpcStatusDecorator('neural_network.setLearningNetwork', 'S:i')
+    @MySQL_master
+    def setLearningNetwork(self, neural_network_id):
+        #todo kdyz bude moznost spoustet vice uceni neuronovych siti, tak bude potreba upresnit id neuornove site
+        query = "UPDATE learning_queue SET status = 'learning' WHERE neural_network_id = %s";
+        self.cursor.execute(query, neural_network_id)
+        
+        if self.cursor.rowcount == 0:
+            status, statusMessage = 404, "NeuralNetwork #%d not found." % neural_network_id
+            raise Exception(status, statusMessage)
+        #endif
+        
+        return True
+    #enddef
+    
+    @rpcStatusDecorator('neural_network.deleteLearningNetwork', 'S:')
+    @MySQL_master
+    def deleteLearningNetwork(self):
+        #todo kdyz bude moznost spoustet vice uceni neuronovych siti, tak bude potreba upresnit id neuornove site
+        query = "DELETE FROM learning_queue WHERE status = 'learning'";
+        self.cursor.execute(query)
+        
+        if self.cursor.rowcount == 0:
+            status, statusMessage = 404, "NeuralNetwork #%d not found." % neural_network_id
+            raise Exception(status, statusMessage)
+        #endif
+        
+        return True
+    #enddef
 #endclass
 
