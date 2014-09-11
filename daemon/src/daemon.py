@@ -11,6 +11,8 @@
 import sys
 sys.path.insert(0, '/www/picturedetector/common/module/')
 
+
+from szn_utils.configutils import ConfigBox
 from szn_utils.daemon import DaemonConfig, Daemon
 from dbglog import dbg
 
@@ -66,6 +68,7 @@ class PicturedetectorDaemonConfig(DaemonConfig):
         cursor = self.db.cursor(MySQLdb.cursors.DictCursor)
         cursor.execute("SET AUTOCOMMIT=1")
         cursor.close()
+        self.backend = ConfigBox(self.parser, "backend")
         self.caffe = self.CaffeConfig(self.parser, "caffe")
     #enddef
 
