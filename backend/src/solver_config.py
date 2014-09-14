@@ -7,6 +7,7 @@
 
 from rpc_backbone.decorators import rpcStatusDecorator, MySQL_master, MySQL_slave
 from lib.backend import Backend
+from dbglog import dbg
 
 class SolverConfigBackend(Backend):
     @rpcStatusDecorator('solver_config.get', 'S:i')
@@ -25,28 +26,28 @@ class SolverConfigBackend(Backend):
                 int status                          200 = OK
                 string statusMessage                Textovy popis stavu
                 struct data {
-                    integer id                      neural network id
-                    string net
-                    integer stepsize
-                    integer display
-                    integer max_iter
-                    integer test_iter
-                    integer test_interval
-                    bool test_compute_loss
-                    float base_lr
-                    string lr_policy
-                    float gamma
-                    float momentum
-                    float weight_decay
-                    float power
-                    integer snapshot
-                    string snapshot_prefix
-                    bool snapshot_after_train
-                    bool snapshot_diff
-                    integer solver_mode
-                    integer device_id
-                    integer random_seed
-                    bool debug_info
+                    integer id                      id neuronove site
+                    string net                      cesta k definici modelu neuronove site
+                    integer stepsize                velikost kroku pro uceni
+                    integer display                 pocet iteraci po kterych se am vypisovat loss informace (0 = vypnuto)
+                    integer max_iter                maximalni pocet iteraci uceni
+                    integer test_iter               pocet iteraci pro otestovani neuronove site (validace)
+                    integer test_interval           pocet iteraci mezi dvemi testovacimi fazemi
+                    bool test_compute_loss          testovani vypoceteneho loss
+                    float base_lr                   zakladni hodnota miry uceni
+                    string lr_policy                mira utlumu uceni
+                    float gamma                     parametr pro vypocet miry uceni
+                    float momentum                  momentum
+                    float weight_decay              hodnota rozpadu
+                    float power                     parametr pro vypocet miry uceni
+                    integer snapshot                interval pro ukladani naucenych snapshotu
+                    string snapshot_prefix          prefix nazvu souboru pro snapshot
+                    bool snapshot_after_train       vytvoreni snapshotu po skonceni uceni (dosazeno maximum iteraci)
+                    bool snapshot_diff              priznak ukladani diff do snapshotu (zvetsuje velikost)
+                    integer solver_mode             vyber hardware pro uceni neuronove site (CPU, GPU)
+                    integer device_id               id grafickeho zarizeni pro uceni neuronove site
+                    integer random_seed             nastaveni zakladnu pro nahodna cisla
+                    bool debug_info                 priznak pro zapnuti ladicich informaci
                 }
             }
         """
@@ -65,6 +66,227 @@ class SolverConfigBackend(Backend):
         #endif
         
         return solver_config
+    #enddef
+    
+    @rpcStatusDecorator('solver_config.list', 'S:')
+    @MySQL_slave
+    def list(self):
+        """
+        Vylistuje vsechny konfigurace solveru neuronovych siti
+
+        Signature:
+            solver_config.list()
+
+        Returns:
+            struct {
+                int status                          200 = OK
+                string statusMessage                Textovy popis stavu
+                struct data {
+                    integer id                      id neuronove site
+                    string net                      cesta k definici modelu neuronove site
+                    integer stepsize                velikost kroku pro uceni
+                    integer display                 pocet iteraci po kterych se am vypisovat loss informace (0 = vypnuto)
+                    integer max_iter                maximalni pocet iteraci uceni
+                    integer test_iter               pocet iteraci pro otestovani neuronove site (validace)
+                    integer test_interval           pocet iteraci mezi dvemi testovacimi fazemi
+                    bool test_compute_loss          testovani vypoceteneho loss
+                    float base_lr                   zakladni hodnota miry uceni
+                    string lr_policy                mira utlumu uceni
+                    float gamma                     parametr pro vypocet miry uceni
+                    float momentum                  momentum
+                    float weight_decay              hodnota rozpadu
+                    float power                     parametr pro vypocet miry uceni
+                    integer snapshot                interval pro ukladani naucenych snapshotu
+                    string snapshot_prefix          prefix nazvu souboru pro snapshot
+                    bool snapshot_after_train       vytvoreni snapshotu po skonceni uceni (dosazeno maximum iteraci)
+                    bool snapshot_diff              priznak ukladani diff do snapshotu (zvetsuje velikost)
+                    integer solver_mode             vyber hardware pro uceni neuronove site (CPU, GPU)
+                    integer device_id               id grafickeho zarizeni pro uceni neuronove site
+                    integer random_seed             nastaveni zakladnu pro nahodna cisla
+                    bool debug_info                 priznak pro zapnuti ladicich informaci
+                }
+            }
+        """
+
+        query = """
+            SELECT *
+            FROM solver_config
+        """
+        self.cursor.execute(query)
+        models = self.cursor.fetchall()
+        return models
+    #enddef
+    
+    @rpcStatusDecorator('solver_config.add', 'S:S')
+    @MySQL_master
+    def add(self, param):
+        """
+        Pridani nove konfigurace solveru neuronovych siti
+
+        Signature:
+            solver_config.add(struct param)
+
+        @param {
+            string net                      cesta k definici modelu neuronove site
+            integer stepsize                velikost kroku pro uceni
+            integer display                 pocet iteraci po kterych se am vypisovat loss informace (0 = vypnuto)
+            integer max_iter                maximalni pocet iteraci uceni
+            integer test_iter               pocet iteraci pro otestovani neuronove site (validace)
+            integer test_interval           pocet iteraci mezi dvemi testovacimi fazemi
+            bool test_compute_loss          testovani vypoceteneho loss
+            float base_lr                   zakladni hodnota miry uceni
+            string lr_policy                mira utlumu uceni
+            float gamma                     parametr pro vypocet miry uceni
+            float momentum                  momentum
+            float weight_decay              hodnota rozpadu
+            float power                     parametr pro vypocet miry uceni
+            integer snapshot                interval pro ukladani naucenych snapshotu
+            string snapshot_prefix          prefix nazvu souboru pro snapshot
+            bool snapshot_after_train       vytvoreni snapshotu po skonceni uceni (dosazeno maximum iteraci)
+            bool snapshot_diff              priznak ukladani diff do snapshotu (zvetsuje velikost)
+            integer solver_mode             vyber hardware pro uceni neuronove site (CPU, GPU)
+            integer device_id               id grafickeho zarizeni pro uceni neuronove site
+            integer random_seed             nastaveni zakladnu pro nahodna cisla
+            bool debug_info                 priznak pro zapnuti ladicich informaci
+        }
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                int data                Vraci id nove konfigurace solveru
+            }
+        """
+        
+        columns = []
+        values = []
+        for key in param:
+            columns.append(key)
+            values.append(str(param[key]))
+
+        separator = ', '
+        params = {
+            'columns': separator.join(columns),
+            'values': separator.join(values)
+        }
+        #TODO bezpecnosti dira, musi se nejak kontrolovat stringy, ktere prichazeji
+        #TODO nejde vygnerovat nazvy sloupcu bez apostrofu, generuje to chybu v dotazu
+        query = """
+            INSERT INTO solver_config (%(columns)s)
+            VALUE (%(values)s)
+        """
+        dbg.log(query, INFO=3)
+        self.cursor.execute(query, params)
+        model_id = self.cursor.lastrowid
+        return model_id
+    #enddef
+    
+    @rpcStatusDecorator('solver_config.edit', 'S:iS')
+    @MySQL_master
+    def edit(self, neural_network_id, params):
+        """
+        Upraveni existujici konfigurace solveru neuronovych siti
+
+        Signature:
+            solver_config.edit(struct param)
+
+        @param {
+            string net                      cesta k definici modelu neuronove site
+            integer stepsize                velikost kroku pro uceni
+            integer display                 pocet iteraci po kterych se am vypisovat loss informace (0 = vypnuto)
+            integer max_iter                maximalni pocet iteraci uceni
+            integer test_iter               pocet iteraci pro otestovani neuronove site (validace)
+            integer test_interval           pocet iteraci mezi dvemi testovacimi fazemi
+            bool test_compute_loss          testovani vypoceteneho loss
+            float base_lr                   zakladni hodnota miry uceni
+            string lr_policy                mira utlumu uceni
+            float gamma                     parametr pro vypocet miry uceni
+            float momentum                  momentum
+            float weight_decay              hodnota rozpadu
+            float power                     parametr pro vypocet miry uceni
+            integer snapshot                interval pro ukladani naucenych snapshotu
+            string snapshot_prefix          prefix nazvu souboru pro snapshot
+            bool snapshot_after_train       vytvoreni snapshotu po skonceni uceni (dosazeno maximum iteraci)
+            bool snapshot_diff              priznak ukladani diff do snapshotu (zvetsuje velikost)
+            integer solver_mode             vyber hardware pro uceni neuronove site (CPU, GPU)
+            integer device_id               id grafickeho zarizeni pro uceni neuronove site
+            integer random_seed             nastaveni zakladnu pro nahodna cisla
+            bool debug_info                 priznak pro zapnuti ladicich informaci
+        }
+        
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                bool data               Success
+            }
+        """
+
+        filterDict = {
+            "net":                          "net = %(net)s",
+            "stepsize":                     "stepsize = %(stepsize)s",
+            "display":                      "display = %(display)s",
+            "max_iter":                     "max_iter = %(max_iter)s",
+            "test_iter":                    "test_iter = %(test_iter)s",
+            "test_interval":                "test_interval = %(test_interval)s",
+            "test_compute_loss":            "test_compute_loss = %(test_compute_loss)s",
+            "base_lr":                      "base_lr = %(base_lr)s",
+            "lr_policy":                    "lr_policy = %(lr_policy)s",
+            "gamma":                        "gamma = %(gamma)s",
+            "momentum":                     "momentum = %(momentum)s",
+            "weight_decay":                 "weight_decay = %(weight_decay)s",
+            "power":                        "power = %(power)s",
+            "snapshot":                     "snapshot = %(snapshot)s",
+            "snapshot_prefix":              "snapshot_prefix = %(snapshot_prefix)s",
+            "snapshot_after_train":         "snapshot_after_train = %(snapshot_after_train)s",
+            "snapshot_diff":                "snapshot_diff = %(snapshot_diff)s",
+            "solver_mode":                  "solver_mode = %(solver_mode)s",
+            "device_id":                    "device_id = %(device_id)s",
+            "random_seed":                  "random_seed = %(random_seed)s",
+            "debug_info":                   "debug_info = %(debug_info)s",
+        }
+        
+        SET = self._getFilter(filterDict, params, "SET", ", ")
+        params["neural_network_id"] = neural_network_id
+        query = """
+            UPDATE solver_config
+            """ + SET + """
+            WHERE neural_network_id = %(neural_network_id)s
+        """
+        self.cursor.execute(query, params)
+        return True
+    #enddef
+    
+    @rpcStatusDecorator('solver_config.delete', 'S:i')
+    @MySQL_master
+    def delete(self, neural_network_id):
+        """
+        Odstrani celou konfiguraci solveru neuronove site
+
+        Signature:
+            solver_config.delete(int model_id)
+
+        @neural_network_id           id neuronove site
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                bool data               Uspesne smazano
+            }
+        """
+
+        query = """
+            DELETE FROM solver_config
+            WHERE neural_network_id = %s
+        """
+        self.cursor.execute(query, neural_network_id)
+        if self.cursor.rowcount == 0:
+            status, statusMessage = 404, "Solver config for NeuralNetwork #%d not found." % neural_network_id
+            raise Exception(status, statusMessage)
+        #endif
+
+        return True
     #enddef
     
 #endclass

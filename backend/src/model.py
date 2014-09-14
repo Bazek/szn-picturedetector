@@ -175,7 +175,7 @@ class ModelBackend(Backend):
         """
         self.cursor.execute(query, model_id)
         if self.cursor.rowcount == 0:
-            status, statusMessage = 404, "NeuralNetwork #%d not found." % model_id
+            status, statusMessage = 404, "Model #%d not found." % model_id
             raise Exception(status, statusMessage)
         #endif
 

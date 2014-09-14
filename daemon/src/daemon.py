@@ -23,7 +23,6 @@ import signal
 import subprocess
 import shutil
 import re
-import szn_utils
 
 from caffe.proto import caffe_pb2
 from google.protobuf import text_format
