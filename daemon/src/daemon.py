@@ -77,6 +77,12 @@ class PicturedetectorDaemon(Daemon):
     # koncovka mean file souboru
     MEAN_FILE_EXT = '.binaryproto'
     
+    # koncovka prototxt souboru
+    PROTOTXT_FILE_EXT = '.prototxt'
+    
+    # koncovka log souboru
+    LOG_FILE_EXT = '.log'
+    
     # Konstanty, ktere slouzi jako klice do pole se statistikami uceni
     ACCURACY = 'accuracy'
     LOSS = 'loss'
@@ -103,7 +109,7 @@ class PicturedetectorDaemon(Daemon):
     
     def __getNextNeuralNetwork(self):
         # Precteme z databaze dalsi neuronovou sit pripravenou ve fronte k uceni
-        result = self.config.backend.proxy.neural_network.getNextLearningNetwork()
+        result = self.config.backend.proxy.learning_queue.getNext()
         dbg.log(str(result), INFO=3)
         return result['data']
     #enddef
@@ -111,9 +117,6 @@ class PicturedetectorDaemon(Daemon):
     def __startLearningProcess(self, queue_info):
         dbg.log("Start learning network with id " + str(queue_info['neural_network_id']), INFO=3)
 
-        # Aktualizujeme zaznam v databazi        
-        self.config.backend.proxy.neural_network.setLearningNetwork(queue_info['neural_network_id'])
-        
         pid = self._startCaffeLearning(queue_info['neural_network_id'], queue_info['picture_set_id'], queue_info['start_iteration'])
         if pid:
             self._savePid(pid)
@@ -135,7 +138,7 @@ class PicturedetectorDaemon(Daemon):
         pid = self._readPid()
 
         # Odstraneni zaznamu v databazi
-        self.config.backend.proxy.neural_network.deleteLearningNetwork()
+        self.config.backend.proxy.learning_queue.deleteLearning()
             
         # Odstraneni souboru s bezicim PID
         pid_file = self.config.caffe.pid_file
@@ -291,7 +294,11 @@ class PicturedetectorDaemon(Daemon):
         queue_info = self.__getNextNeuralNetwork()
 
         if queue_info:
-            self.__startLearningProcess(queue_info)
+            try:
+                self.__startLearningProcess(queue_info)
+            except:
+                dbg.log('Exception occured during starting learning process')
+                self.__stopLearningProcess()
             #TODO delete
             dbg.log(str(self._learningStatus(queue_info['neural_network_id'])), INFO=3)
         #endif
@@ -485,12 +492,12 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
     def _getLearnLogPath(self, neural_network_id):
-        log_path = os.path.join(self.config.caffe.learn_output_path, self.config.caffe.learn_outout_prefix + str(neural_network_id))
+        log_path = os.path.join(self.config.caffe.learn_output_path, self.config.caffe.learn_outout_prefix + str(neural_network_id) + self.LOG_FILE_EXT)
         return log_path
     #enddef
     
     def _getSolverPath(self, neural_network_id):
-        solver_path = os.path.join(self.config.caffe.solver_file_path, self.config.caffe.solver_file_prefix + str(neural_network_id))
+        solver_path = os.path.join(self.config.caffe.solver_file_path, self.config.caffe.solver_file_prefix + str(neural_network_id) + self.PROTOTXT_FILE_EXT)
         return solver_path
     #enddef
 

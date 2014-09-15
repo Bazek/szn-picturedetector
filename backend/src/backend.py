@@ -18,6 +18,7 @@ from picture import PictureSetBackend, PictureBackend
 from classify import ClassifyBackend
 from model import ModelBackend
 from solver_config import SolverConfigBackend
+from learning_queue import LearningQueueBackend
 
 
 def init(cfg):
@@ -37,6 +38,7 @@ def init(cfg):
         'classify': ClassifyBackend(server),
         'model': ModelBackend(server),
         'solver_config': SolverConfigBackend(server),
+        'learning_queue': LearningQueueBackend(server),
     }
     # Monitorovaci metoda
     server.registerHEADMethod(head)
