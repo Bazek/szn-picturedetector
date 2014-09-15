@@ -15,8 +15,6 @@ from szn_utils.configutils import ConfigBox
 from szn_utils.daemon import DaemonConfig, Daemon
 from dbglog import dbg
 
-import MySQLdb.cursors
-import MySQLdb.connections
 import psutil
 import os.path
 import signal
@@ -29,19 +27,6 @@ from google.protobuf import text_format
 from google.protobuf import descriptor
 
 class PicturedetectorDaemonConfig(DaemonConfig):
-
-    class DbConnection(MySQLdb.connections.Connection):
-        def __init__(self, parser, section="mysql-master"):
-            super(PicturedetectorDaemonConfig.DbConnection, self).__init__(
-                unix_socket = parser.get(section, "Socket"),
-                host = parser.get(section, "Host"),
-                user = parser.get(section, "User"),
-                port = parser.getint(section, "Port"),
-                passwd = parser.get(section, "Password"),
-                db = parser.get(section, "Database"),
-            )
-        #enddef
-    #endclass
 
     class CaffeConfig(object):
         """ Parse caffe section """
@@ -445,29 +430,6 @@ class PicturedetectorDaemon(Daemon):
             raise self.ProcessException("Nemuzu vytvorit solver soubor (" + filepath + ")!")
         file.write(file_content)
         file.close()
-    #enddef
-    
-    def _getFilter(self, filterDict, valuesDict, prefix="WHERE", separator=" AND ", empty=True):
-        """ Pomocna funkce pro sestavovani klauzuli pomoci parametru """
-        values = []
-        for key, val in valuesDict.items():
-            if key in filterDict:
-                value = filterDict[key]
-                values.append(value)
-            else:
-                status, statusMessage = 300, "Unknown value %s" % key
-                raise BackendException(status, statusMessage)
-            #endif
-        #endfor
-
-        FILTER = separator.join(values)
-        if not FILTER and not empty:
-            status, statusMessage = 300, "No data"
-            raise BackendException(status, statusMessage)
-        elif FILTER:
-            FILTER = "%s %s" % (prefix, FILTER)
-        #endif
-        return FILTER
     #enddef
     
 

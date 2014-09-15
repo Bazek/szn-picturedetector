@@ -8,7 +8,7 @@ Standards-Version: 3.7.2.2
 Package: szn-picturedetector-daemon
 Architecture: all
 Section: picturedetector/Seznam
-Depends: ${shlibs:Depends}, ${misc:Depends}, python, python-dbglog, szn-python-mysql, dbwrapper,
+Depends: ${shlibs:Depends}, ${misc:Depends}, python, python-dbglog, python-psutil,
     szn-picturedetector-common, szn-python-utils, szn-logy
 Description: Bootstrapped package szn-picturedetector-daemon
  This is a newly bootstrapped package for picturedetector-daemon.
