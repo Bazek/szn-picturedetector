@@ -119,7 +119,7 @@ class SolverConfigBackend(Backend):
     
     @rpcStatusDecorator('solver_config.add', 'S:S')
     @MySQL_master
-    def add(self, param):
+    def add(self, params):
         """
         Pridani nove konfigurace solveru neuronovych siti
 
@@ -127,6 +127,7 @@ class SolverConfigBackend(Backend):
             solver_config.add(struct param)
 
         @param {
+            integer neural_network_id       id neuronove site
             string net                      cesta k definici modelu neuronove site
             integer stepsize                velikost kroku pro uceni
             integer display                 pocet iteraci po kterych se am vypisovat loss informace (0 = vypnuto)
@@ -157,23 +158,40 @@ class SolverConfigBackend(Backend):
                 int data                Vraci id nove konfigurace solveru
             }
         """
-        
-        columns = []
-        values = []
-        for key in param:
-            columns.append(key)
-            values.append(str(param[key]))
 
-        separator = ', '
-        params = {
-            'columns': separator.join(columns),
-            'values': separator.join(values)
+        if 'neural_network_id' not in params:
+            raise Exception(402, "Neural network id is missing")
+        #endif
+
+        filterDict = {
+            "neural_network_id":            "neural_network_id = %(neural_network_id)s",
+            "net":                          "net = %(net)s",
+            "stepsize":                     "stepsize = %(stepsize)s",
+            "display":                      "display = %(display)s",
+            "max_iter":                     "max_iter = %(max_iter)s",
+            "test_iter":                    "test_iter = %(test_iter)s",
+            "test_interval":                "test_interval = %(test_interval)s",
+            "test_compute_loss":            "test_compute_loss = %(test_compute_loss)s",
+            "base_lr":                      "base_lr = %(base_lr)s",
+            "lr_policy":                    "lr_policy = %(lr_policy)s",
+            "gamma":                        "gamma = %(gamma)s",
+            "momentum":                     "momentum = %(momentum)s",
+            "weight_decay":                 "weight_decay = %(weight_decay)s",
+            "power":                        "power = %(power)s",
+            "snapshot":                     "snapshot = %(snapshot)s",
+            "snapshot_prefix":              "snapshot_prefix = %(snapshot_prefix)s",
+            "snapshot_after_train":         "snapshot_after_train = %(snapshot_after_train)s",
+            "snapshot_diff":                "snapshot_diff = %(snapshot_diff)s",
+            "solver_mode":                  "solver_mode = %(solver_mode)s",
+            "device_id":                    "device_id = %(device_id)s",
+            "random_seed":                  "random_seed = %(random_seed)s",
+            "debug_info":                   "debug_info = %(debug_info)s",
         }
-        #TODO bezpecnosti dira, musi se nejak kontrolovat stringy, ktere prichazeji
-        #TODO nejde vygnerovat nazvy sloupcu bez apostrofu, generuje to chybu v dotazu
+        
+        SET = self._getFilter(filterDict, params, "SET", ", ")
         query = """
-            INSERT INTO solver_config (%(columns)s)
-            VALUE (%(values)s)
+            INSERT INTO solver_config
+            """ + SET + """
         """
         dbg.log(query, INFO=3)
         self.cursor.execute(query, params)
