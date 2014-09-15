@@ -586,7 +586,7 @@ class PicturedetectorDaemon(Daemon):
 
 
 def main():
-    config = PicturedetectorDaemonConfig('/www/picturedetector/daemon/conf/daemon.conf', '/www/picturedetector/daemon/conf/daemon.db.conf')
+    config = PicturedetectorDaemonConfig('/www/picturedetector/daemon/conf/daemon.conf')
     daemon = PicturedetectorDaemon(config)
     daemon.process()
 #enddef
