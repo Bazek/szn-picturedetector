@@ -14,6 +14,7 @@ sys.path.insert(0, '/www/picturedetector/common/module/')
 from szn_utils.configutils import ConfigBox
 from szn_utils.daemon import DaemonConfig, Daemon
 from dbglog import dbg
+from picturedetector import util
 
 import psutil
 import os.path
@@ -61,10 +62,7 @@ class PicturedetectorDaemonConfig(DaemonConfig):
 
 class PicturedetectorDaemon(Daemon):
     """ PicturedetectorDaemon Process """
-    # Konstanty pro rozliseni souboru pro uceni a validaci
-    TRAIN = 'train'
-    VALIDATE = 'validate'
-    
+
     # Konstanty, ktere odpovidaji enum hodnotam v tabulce picture
     DB_TRAINING = 'training'
     DB_VALIDATION = 'validation'
@@ -86,10 +84,6 @@ class PicturedetectorDaemon(Daemon):
     
     # Signal, ktery se posle podprocesu v pripade ze daemon dostal signal pro ukonceni
     KILL_SIGNAL = signal.SIGINT
-
-    # Konstanty, ktere urcuji nactene cesty ze souboru imagenet_train_val.prototxt
-    SOURCE = 'source'
-    MEAN_FILE = 'mean_file'
 
     def __learningInProgress(self):
         pid = self._readPid()
@@ -200,23 +194,22 @@ class PicturedetectorDaemon(Daemon):
         result = self.config.backend.proxy.solver_config.get(network['id'])
         solver_config = result['data']
         
-        #TODO fix calling
         solver_config_path = self._getSolverPath(network['id'])
         
         # Parsovani cest ze souboru imagenet_train_val.prototxt
-        layer_config = self._readProtoLayerFile(solver_config['net'])
-        layer_paths = self._parseLayerPaths(layer_config)
+        layer_config = util.readProtoLayerFile(solver_config['net'])
+        layer_paths = util.parseLayerPaths(layer_config)
         dbg.log("PARSE PATHS: " + str(layer_paths), INFO=3)
         # Ziskat picture set a vygenerovat soubory s cestami k obrazkum (validacni a ucici)
         picture_files = self._createFilesWithImages(picture_set)
         
         # Vymazat stare uloznene obrazky pokud existuji
-        if os.path.exists(layer_paths[self.TRAIN][self.SOURCE]):
-            shutil.rmtree(layer_paths[self.TRAIN][self.SOURCE])
+        if os.path.exists(layer_paths[util.TRAIN][util.SOURCE]):
+            shutil.rmtree(layer_paths[util.TRAIN][util.SOURCE])
         #endif
             
-        if os.path.exists(layer_paths[self.VALIDATE][self.SOURCE]):
-            shutil.rmtree(layer_paths[self.VALIDATE][self.SOURCE])
+        if os.path.exists(layer_paths[util.VALIDATE][util.SOURCE]):
+            shutil.rmtree(layer_paths[util.VALIDATE][util.SOURCE])
         #endif
         
         # Otevreni souboru pro zapis 
@@ -236,10 +229,10 @@ class PicturedetectorDaemon(Daemon):
         # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni databaze obrazku. Prvni parametr je cesta ke skriptu
         create_args = []
         create_args.append(create_imagenet_script)
-        create_args.append(picture_files[self.TRAIN])
-        create_args.append(picture_files[self.VALIDATE])
-        create_args.append(layer_paths[self.TRAIN][self.SOURCE])
-        create_args.append(layer_paths[self.VALIDATE][self.SOURCE])
+        create_args.append(picture_files[util.TRAIN])
+        create_args.append(picture_files[util.VALIDATE])
+        create_args.append(layer_paths[util.TRAIN][util.SOURCE])
+        create_args.append(layer_paths[util.VALIDATE][util.SOURCE])
         
         # Vytvorit imagenet pomoci souboru s obrazky a zadanych cest kde se maji vytvorit
         subprocess.call(create_args)
@@ -247,8 +240,8 @@ class PicturedetectorDaemon(Daemon):
         # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni mean souboru obrazku pro trenovaci obrazky
         create_mean_file_args = []
         create_mean_file_args.append(create_mean_file_script)
-        create_mean_file_args.append(layer_paths[self.TRAIN][self.SOURCE])
-        create_mean_file_args.append(layer_paths[self.TRAIN][self.MEAN_FILE])
+        create_mean_file_args.append(layer_paths[util.TRAIN][util.SOURCE])
+        create_mean_file_args.append(layer_paths[util.TRAIN][util.MEAN_FILE])
         
         # Vytvorit mean file pro trenovaci obrazky
         subprocess.call(create_mean_file_args)
@@ -256,8 +249,8 @@ class PicturedetectorDaemon(Daemon):
         # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni mean souboru obrazku pro validacni obrazky
         create_mean_file_args = []
         create_mean_file_args.append(create_mean_file_script)
-        create_mean_file_args.append(layer_paths[self.VALIDATE][self.SOURCE])
-        create_mean_file_args.append(layer_paths[self.VALIDATE][self.MEAN_FILE])
+        create_mean_file_args.append(layer_paths[util.VALIDATE][util.SOURCE])
+        create_mean_file_args.append(layer_paths[util.VALIDATE][util.MEAN_FILE])
         
         # Vytvorit mean file pro validacni obrazky
         subprocess.call(create_mean_file_args)
@@ -333,8 +326,8 @@ class PicturedetectorDaemon(Daemon):
         #endif
         
         createdFiles = {
-            self.TRAIN: learn_file,
-            self.VALIDATE: validate_file
+            util.TRAIN: learn_file,
+            util.VALIDATE: validate_file
         }
         
         # nacist obrazky z picture setu
@@ -495,91 +488,11 @@ class PicturedetectorDaemon(Daemon):
         log_path = os.path.join(self.config.caffe.learn_output_path, self.config.caffe.learn_outout_prefix + str(neural_network_id))
         return log_path
     #enddef
-
-#
-#
-#
-#TODO DELETE
-# vvvvvvvv
-#
-#
     
-    def _readProtoLayerFile(self, filepath):
-        layers_config = caffe_pb2.NetParameter()
-        return self._readProtoFile(filepath, layers_config)
-    #enddef
-
-    def _readProtoSolverFile(self, filepath):
-        solver_config = caffe_pb2.SolverParameter()
-        return self._readProtoFile(filepath, solver_config)
-    #enddef
-
-    def _readProtoFile(self, filepath, parser_object):
-        file = open(filepath, "r")
-        if not file:
-            raise self.ProcessException("Soubor s konfiguraci vrstev neuronove site neexistuje (" + filepath + ")!")
-
-        text_format.Merge(str(file.read()), parser_object)
-        file.close()
-        return parser_object
-    #enddef
-
     def _getSolverPath(self, neural_network_id):
         solver_path = os.path.join(self.config.caffe.solver_file_path, self.config.caffe.solver_file_prefix + str(neural_network_id))
         return solver_path
     #enddef
-
-    def _parseLayerPaths(self, proto):
-        results = {}
-
-        results[self.TRAIN] = {
-            self.SOURCE: '',
-            self.MEAN_FILE: ''
-        }
-
-        results[self.VALIDATE] = {
-            self.SOURCE: '',
-            self.MEAN_FILE: ''
-        }
-
-        for layer in proto.layers:
-            if layer.type == caffe_pb2.LayerParameter.LayerType.Value('DATA'):
-                include_name = False
-                for include in layer.include:
-                    if include.phase == caffe_pb2.Phase.Value('TRAIN'):
-                        include_name = self.TRAIN
-                    elif include.phase == caffe_pb2.Phase.Value('TEST'):
-                        include_name = self.VALIDATE
-                    #endif
-                #endfor
-
-                if not include_name or (include_name == self.TRAIN):
-                    if layer.data_param.source:
-                        results[self.TRAIN][self.SOURCE] = layer.data_param.source
-                    #endif
-
-                    if layer.data_param.mean_file:
-                        results[self.TRAIN][self.MEAN_FILE] = layer.data_param.mean_file
-                    #endif
-                #endif
-
-                if not include_name or (include_name == self.VALIDATE):
-                    if layer.data_param.source:
-                        results[self.VALIDATE][self.SOURCE] = layer.data_param.source
-                    #endif
-
-                    if layer.data_param.mean_file:
-                        results[self.VALIDATE][self.MEAN_FILE] = layer.data_param.mean_file
-                    #endif
-                #endif
-            #endif
-        #endfor
-
-        return results
-#
-# ^^^^^^^^
-# END DELETE
-#
 
 #endclass
 

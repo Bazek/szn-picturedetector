@@ -9,43 +9,43 @@
 # Copyright (C) Seznam.cz a.s. 2014
 # All Rights Reserved
 
+from caffe.proto import caffe_pb2
+from google.protobuf import text_format
 
-def readProtoLayerFile(self, filepath):
+# Konstanty pro rozliseni souboru pro uceni a validaci
+TRAIN = 'train'
+VALIDATE = 'validate'
+
+# Konstanty, ktere urcuji nactene cesty ze souboru imagenet_train_val.prototxt
+SOURCE = 'source'
+MEAN_FILE = 'mean_file'    
+    
+def readProtoLayerFile(filepath):
     layers_config = caffe_pb2.NetParameter()
-    return self._readProtoFile(filepath, layers_config)
+    return _readProtoFile(filepath, layers_config)
 #enddef
 
-def readProtoSolverFile(self, filepath):
-    solver_config = caffe_pb2.SolverParameter()
-    return self._readProtoFile(filepath, solver_config)
-#enddef
-
-def readProtoFile(self, filepath, parser_object):
+def _readProtoFile(filepath, parser_object):
     file = open(filepath, "r")
     if not file:
-        raise self.ProcessException("Soubor s konfiguraci vrstev neuronove site neexistuje (" + filepath + ")!")
+        raise Exception("Soubor s konfiguraci vrstev neuronove site neexistuje (" + filepath + ")!")
 
     text_format.Merge(str(file.read()), parser_object)
     file.close()
     return parser_object
 #enddef
-    
-def getSolverPath(self, neural_network_id):
-    solver_path = os.path.join(self.config.caffe.solver_file_path, self.config.caffe.solver_file_prefix + str(neural_network_id))
-    return solver_path
-#enddef
 
-def parseLayerPaths(self, proto):
+def parseLayerPaths(proto):
     results = {}
 
-    results[self.TRAIN] = {
-        self.SOURCE: '',
-        self.MEAN_FILE: ''
+    results[TRAIN] = {
+        SOURCE: '',
+        MEAN_FILE: ''
     }
 
-    results[self.VALIDATE] = {
-        self.SOURCE: '',
-        self.MEAN_FILE: ''
+    results[VALIDATE] = {
+        SOURCE: '',
+        MEAN_FILE: ''
     }
 
     for layer in proto.layers:
@@ -53,29 +53,29 @@ def parseLayerPaths(self, proto):
             include_name = False
             for include in layer.include:
                 if include.phase == caffe_pb2.Phase.Value('TRAIN'):
-                    include_name = self.TRAIN
+                    include_name = TRAIN
                 elif include.phase == caffe_pb2.Phase.Value('TEST'):
-                    include_name = self.VALIDATE
+                    include_name = VALIDATE
                 #endif
             #endfor
 
-            if not include_name or (include_name == self.TRAIN):
+            if not include_name or (include_name == TRAIN):
                 if layer.data_param.source:
-                    results[self.TRAIN][self.SOURCE] = layer.data_param.source
+                    results[TRAIN][SOURCE] = layer.data_param.source
                 #endif
 
                 if layer.data_param.mean_file:
-                    results[self.TRAIN][self.MEAN_FILE] = layer.data_param.mean_file
+                    results[TRAIN][MEAN_FILE] = layer.data_param.mean_file
                 #endif
             #endif
 
-            if not include_name or (include_name == self.VALIDATE):
+            if not include_name or (include_name == VALIDATE):
                 if layer.data_param.source:
-                    results[self.VALIDATE][self.SOURCE] = layer.data_param.source
+                    results[VALIDATE][SOURCE] = layer.data_param.source
                 #endif
 
                 if layer.data_param.mean_file:
-                    results[self.VALIDATE][self.MEAN_FILE] = layer.data_param.mean_file
+                    results[VALIDATE][MEAN_FILE] = layer.data_param.mean_file
                 #endif
             #endif
         #endif

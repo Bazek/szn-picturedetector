@@ -9,20 +9,10 @@ import metaserver.fastrpc as server
 from dbglog import dbg
 from lib.backend import Backend
 from rpc_backbone.decorators import rpcStatusDecorator
-import numpy as np
 import caffe
-from caffe.proto import caffe_pb2
-from google.protobuf import text_format
+from picturedetector import util
 
 class ClassifyBackend(Backend):
-        
-    # Konstanty pro rozliseni souboru pro uceni a validaci
-    TRAIN = 'train'
-    VALIDATE = 'validate'
-
-    # Konstanty, ktere urcuji nactene cesty ze souboru imagenet_train_val.prototxt
-    SOURCE = 'source'
-    MEAN_FILE = 'mean_file'
     
     @rpcStatusDecorator('classify.classify', 'S:iA')
     def classify(self, neural_network_id, images):
@@ -64,9 +54,9 @@ class ClassifyBackend(Backend):
         solver_config = server.globals.rpcObjects['solver_config'].get(neural_network_id, bypass_rpc_status_decorator=True)
     
         # Parsovani cest ze souboru imagenet_train_val.prototxt
-        layer_config = self._readProtoLayerFile(solver_config['net'])
-        layer_paths = self._parseLayerPaths(layer_config)
-        mean_file_path = layer_paths[self.TRAIN][self.MEAN_FILE]
+        layer_config = util.readProtoLayerFile(solver_config['net'])
+        layer_paths = util.parseLayerPaths(layer_config)
+        mean_file_path = layer_paths[util.TRAIN][util.MEAN_FILE]
         
         dbg.log("Path settings:\nmodel path %s\ntrained_path %s\nmean file %s", (model_config_path, pretrained_model_path, mean_file_path), DBG=3) 
 
@@ -132,75 +122,6 @@ class ClassifyBackend(Backend):
             
         return result
 
-    #enddef
-    
-    def _readProtoLayerFile(self, filepath):
-        layers_config = caffe_pb2.NetParameter()
-        return self._readProtoFile(filepath, layers_config)
-    #enddef
-    
-    def _readProtoSolverFile(self, filepath):
-        solver_config = caffe_pb2.SolverParameter()
-        return self._readProtoFile(filepath, solver_config)
-    #enddef
-    
-    def _readProtoFile(self, filepath, parser_object):
-        file = open(filepath, "r")
-        if not file:
-            raise self.ProcessException("Soubor s konfiguraci vrstev neuronove site neexistuje (" + filepath + ")!")
-
-        text_format.Merge(str(file.read()), parser_object)
-        file.close()
-        return parser_object
-    #enddef
-    
-    def _parseLayerPaths(self, proto):
-        results = {}
-        
-        results[self.TRAIN] = {
-            self.SOURCE: '',
-            self.MEAN_FILE: ''
-        }
-        
-        results[self.VALIDATE] = {
-            self.SOURCE: '',
-            self.MEAN_FILE: ''
-        }
-        
-        for layer in proto.layers:
-            if layer.type == caffe_pb2.LayerParameter.LayerType.Value('DATA'):
-                include_name = False
-                for include in layer.include:
-                    if include.phase == caffe_pb2.Phase.Value('TRAIN'):
-                        include_name = self.TRAIN
-                    elif include.phase == caffe_pb2.Phase.Value('TEST'):
-                        include_name = self.VALIDATE
-                    #endif
-                #endfor
-
-                if not include_name or (include_name == self.TRAIN):
-                    if layer.data_param.source:
-                        results[self.TRAIN][self.SOURCE] = layer.data_param.source
-                    #endif
-
-                    if layer.data_param.mean_file:
-                        results[self.TRAIN][self.MEAN_FILE] = layer.data_param.mean_file
-                    #endif
-                #endif
-                
-                if not include_name or (include_name == self.VALIDATE):
-                    if layer.data_param.source:
-                        results[self.VALIDATE][self.SOURCE] = layer.data_param.source
-                    #endif
-
-                    if layer.data_param.mean_file:
-                        results[self.VALIDATE][self.MEAN_FILE] = layer.data_param.mean_file
-                    #endif
-                #endif
-            #endif
-        #endfor
-        
-        return results
     #enddef
     
 #endclass
