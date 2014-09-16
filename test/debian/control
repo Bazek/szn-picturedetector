@@ -1,0 +1,16 @@
+Source: szn-picturedetector-test
+Section: picturedetector/Seznam
+Priority: optional
+Maintainer: Petr Bartunek <petr.bartunek@firma.seznam.cz>
+Build-Depends: szn-debhelper
+Standards-Version: 3.7.2.2
+
+Package: szn-picturedetector-test
+Architecture: all
+Section: picturedetector/Seznam
+Depends: ${shlibs:Depends}, ${misc:Depends}, python,
+    szn-picturedetector-common, szn-python-utils
+Description: Bootstrapped package test
+ This is a newly bootstrapped package for test.
+ .
+
