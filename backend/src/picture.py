@@ -270,7 +270,7 @@ class PictureBackend(Backend):
 
     @rpcStatusDecorator('picture.save', 'S:issB')
     @MySQL_master
-    def save(self, picture_set_id, learning_set, learning_subset, data):
+    def save(self, picture_set_id, learning_set, learning_subset, binary):
         """
         """
 
@@ -288,11 +288,10 @@ class PictureBackend(Backend):
             dbg.log("Creating path: %s", path, INFO=1)
             os.makedirs(path)
         #endif
-        data = bytes(data)
-        file_name = md5(data).hexdigest()
+        file_name = md5(binary.data).hexdigest()
         file_path = "%s/%s" % (path, file_name)
         f = open(file_path, "wb")
-        f.write(data)
+        f.write(binary.data)
         f.close()
         dbg.log("Picture saved successfully: %s", file_path, INFO=3)
 
