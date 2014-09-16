@@ -18,7 +18,7 @@ CREATE TABLE `neural_network` (
   `description` varchar(255) NOT NULL,
   `pretrained_model_path` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
-  FOREIGN KEY (`model_id`) REFERENCES `model` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`model_id`) REFERENCES `model` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Neural networks with configuration';
 
 CREATE TABLE `picture_set` (
