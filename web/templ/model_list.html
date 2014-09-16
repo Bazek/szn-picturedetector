@@ -1,0 +1,29 @@
+<?teng set .menu = 'model'?>
+<?teng include file='common/__head.html'?>
+
+<div id="neural-network_list">
+    <table class="pure-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Popis</th>
+                <th>Status</th>
+                <th>Akce</th>
+        </thead>
+        <tbody>
+            <?teng frag models ?>
+                <tr>
+                    <td>#${id}</td>
+                    <td>${description}</td>
+                    <td>${status}</td>
+                    <td>
+                        <a href="/model/edit/${id}" class="pure-button pure-button-xsmall">Upravit</a>
+                        <a href="/model/delete/${id}" class="pure-button pure-button-error pure-button-xsmall" onclick="return confirm('Opravdu chcete smazat tuto položku?')">Smazat</a>
+                    </td>
+                </tr>
+            <?teng endfrag ?>
+        </tbody>
+    </table>
+</div>
+
+<?teng include file='common/__foot.html'?>

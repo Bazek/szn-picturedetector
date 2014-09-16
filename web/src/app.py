@@ -35,6 +35,7 @@ def create_app(config_path):
 
     # Import handlers
     from views import picturedetector
+    from views import model
     from views import neural_network
     from views import picture
 
