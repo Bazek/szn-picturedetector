@@ -62,8 +62,8 @@ class ClassifyBackend(Backend):
         
         mean_file = None
         #TODO Classify with generated npy file will raise exception: axes don't match array
-        #if mean_file_path:
-            #mean_file = numpy.load(mean_file_path)
+        if mean_file_path:
+            mean_file = numpy.load(mean_file_path)
         #endif
         
         # create caffe classicifer

@@ -201,7 +201,7 @@ class PicturedetectorDaemon(Daemon):
         # Parsovani cest ze souboru imagenet_train_val.prototxt
         layer_config = util.readProtoLayerFile(solver_config['net'])
         layer_paths = util.parseLayerPaths(layer_config)
-        dbg.log("PARSE PATHS: " + str(layer_paths), INFO=3)
+        dbg.log("Loaded paths: " + str(layer_paths), INFO=3)
         # Ziskat picture set a vygenerovat soubory s cestami k obrazkum (validacni a ucici)
         picture_files = self._createFilesWithImages(picture_set)
         
@@ -244,13 +244,13 @@ class PicturedetectorDaemon(Daemon):
         create_mean_file_args.append(create_mean_file_script)
         create_mean_file_args.append(layer_paths[util.TRAIN][util.SOURCE])
         create_mean_file_args.append(layer_paths[util.TRAIN][util.MEAN_FILE])
+
+        # Vytvorit mean file pro trenovaci obrazky
+        subprocess.call(create_mean_file_args)
         
         # Vytvoreni binarniho souboru, ktery dokaze nacist numpy.
         # Tento soubor je potreba pro klasifikaci obrazku, vyse vytvoreny mean file se pouziva pro trenovani site.
         self._createClassifyMeanFile(layer_paths[util.TRAIN][util.MEAN_FILE], network['mean_file'])
-        
-        # Vytvorit mean file pro trenovaci obrazky
-        subprocess.call(create_mean_file_args)
         
         # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni mean souboru obrazku pro validacni obrazky
         create_mean_file_args = []
@@ -415,7 +415,6 @@ class PicturedetectorDaemon(Daemon):
                     # prevedeni enum value z retezce na int
                     if field.type == descriptor.FieldDescriptor.TYPE_ENUM:
                         value = field.containing_type.enum_values_by_name[value].number
-                        dbg.log(str(value), INFO=3)
                         
                     if field.label == descriptor.FieldDescriptor.LABEL_REPEATED: 
                         property = getattr(solver_proto, solver_property)
@@ -428,7 +427,6 @@ class PicturedetectorDaemon(Daemon):
         #endfor
 
         file_content = text_format.MessageToString(solver_proto, as_utf8=True)
-        dbg.log(str(file_content), INFO=3)
         file = open(filepath, 'w')
         if not file:
             raise self.ProcessException("Nemuzu vytvorit solver soubor (" + filepath + ")!")
