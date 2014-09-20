@@ -2,3 +2,6 @@
 /www/picturedetector/test/bin/
 /www/picturedetector/test/conf/
 /www/picturedetector/test/log/
+/www/picturedetector/test/solvers/
+/www/picturedetector/test/models/
+/www/picturedetector/test/images/

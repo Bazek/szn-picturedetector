@@ -17,6 +17,7 @@ CREATE TABLE `neural_network` (
   `model_id` INT NOT NULL,
   `description` varchar(255) NOT NULL,
   `pretrained_model_path` varchar(255) NOT NULL,
+  `mean_file` varchar(255) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   FOREIGN KEY (`model_id`) REFERENCES `model` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Neural networks with configuration';

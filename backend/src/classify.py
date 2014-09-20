@@ -10,7 +10,7 @@ from dbglog import dbg
 from lib.backend import Backend
 from rpc_backbone.decorators import rpcStatusDecorator
 import caffe
-from picturedetector import util
+import numpy
 
 class ClassifyBackend(Backend):
     
@@ -51,26 +51,26 @@ class ClassifyBackend(Backend):
         model_config_path = network['model_config_path']
         pretrained_model_path = network['pretrained_model_path']
 
-        solver_config = server.globals.rpcObjects['solver_config'].get(neural_network_id, bypass_rpc_status_decorator=True)
-    
-        # Parsovani cest ze souboru imagenet_train_val.prototxt
-        layer_config = util.readProtoLayerFile(solver_config['net'])
-        layer_paths = util.parseLayerPaths(layer_config)
-        mean_file_path = layer_paths[util.TRAIN][util.MEAN_FILE]
-        
+        mean_file_path = network['mean_file']
         dbg.log("Path settings:\nmodel path %s\ntrained_path %s\nmean file %s", (model_config_path, pretrained_model_path, mean_file_path), DBG=3) 
 
         # if we get only one image, convert it to array of one image object
         if not isinstance(images, list):
             images = [images]
-            
-        dbg.log("caffe %s", caffe, INFO=3) 
+        
+        # if classifier meanfile path is set, read the mean file
+        
+        mean_file = None
+        #TODO Classify with generated npy file will raise exception: axes don't match array
+        #if mean_file_path:
+            #mean_file = numpy.load(mean_file_path)
+        #endif
+        
         # create caffe classicifer
         net = caffe.Classifier(
             model_config_path,
             pretrained_model_path,
-            #TODO get meanfile in npy format
-            #mean=np.load(mean_file_path),
+            mean=mean_file,
             channel_swap=(2,1,0),
             raw_scale=255,
             gpu=self.config.caffe.gpu_mode

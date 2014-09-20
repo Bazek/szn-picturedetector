@@ -1,0 +1,14 @@
+test_iter: 1000
+test_interval: 1000
+base_lr: 0.01
+display: 20
+max_iter: 200
+lr_policy: "step"
+gamma: 0.1
+momentum: 0.9
+weight_decay: 0.0005
+stepsize: 100000
+snapshot: 2000
+snapshot_prefix: "/www/picturedetector/caffe/gen/caffe_imagenet_train_seznam"
+solver_mode: GPU
+net: "/www/picturedetector/test/models/train_val.prototxt"

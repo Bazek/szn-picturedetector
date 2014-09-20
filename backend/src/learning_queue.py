@@ -100,8 +100,10 @@ class LearningQueueBackend(Backend):
         self.cursor.execute(query)
         queue_info = self.cursor.fetchone()
         
-        query = "UPDATE learning_queue SET status = 'learning' WHERE neural_network_id = %s";
-        self.cursor.execute(query, queue_info['neural_network_id'])
+        if queue_info:
+            query = "UPDATE learning_queue SET status = 'learning' WHERE neural_network_id = %s";
+            self.cursor.execute(query, queue_info['neural_network_id'])
+        #endif
         
         # Prevod None na False, aby to vratilo polozku data
         if not queue_info:

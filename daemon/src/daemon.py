@@ -23,6 +23,8 @@ import subprocess
 import shutil
 import re
 
+import caffe
+import numpy
 from caffe.proto import caffe_pb2
 from google.protobuf import text_format
 from google.protobuf import descriptor
@@ -73,9 +75,6 @@ class PicturedetectorDaemon(Daemon):
     
     # koncovka souboru s konfiguraci solveru
     SOLVER_EXT = '.solverstate'
-    
-    # koncovka mean file souboru
-    MEAN_FILE_EXT = '.binaryproto'
     
     # koncovka prototxt souboru
     PROTOTXT_FILE_EXT = '.prototxt'
@@ -246,6 +245,10 @@ class PicturedetectorDaemon(Daemon):
         create_mean_file_args.append(layer_paths[util.TRAIN][util.SOURCE])
         create_mean_file_args.append(layer_paths[util.TRAIN][util.MEAN_FILE])
         
+        # Vytvoreni binarniho souboru, ktery dokaze nacist numpy.
+        # Tento soubor je potreba pro klasifikaci obrazku, vyse vytvoreny mean file se pouziva pro trenovani site.
+        self._createClassifyMeanFile(layer_paths[util.TRAIN][util.MEAN_FILE], network['mean_file'])
+        
         # Vytvorit mean file pro trenovaci obrazky
         subprocess.call(create_mean_file_args)
         
@@ -294,11 +297,12 @@ class PicturedetectorDaemon(Daemon):
         queue_info = self.__getNextNeuralNetwork()
 
         if queue_info:
-            try:
-                self.__startLearningProcess(queue_info)
-            except:
-                dbg.log('Exception occured during starting learning process')
-                self.__stopLearningProcess()
+#            try:
+            self.__startLearningProcess(queue_info)
+#            except Exception, e:
+#                dbg.log('Exception occured during starting learning process')
+#                self.__stopLearningProcess()
+#                raise e
             #TODO delete
             dbg.log(str(self._learningStatus(queue_info['neural_network_id'])), INFO=3)
         #endif
@@ -467,9 +471,10 @@ class PicturedetectorDaemon(Daemon):
                 
                 has_snapshot = False
             #endif
-            
+
             # V souboru jsme nasli vysledky pro testovanou iteraci
-            m_result = re.search("Test\s+score\s+#(\d+):\s*((?:(?:[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)|nan))", line, flags=re.IGNORECASE)
+            
+            m_result = re.search("Test\s+net\s+output\s+#(\d+):\s*[^=]+\s*((?:(?:[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)|nan))", line, flags=re.IGNORECASE)
             if m_result:
                 value = m_result.group(2)
                 if value == 'nan':
@@ -499,6 +504,36 @@ class PicturedetectorDaemon(Daemon):
     def _getSolverPath(self, neural_network_id):
         solver_path = os.path.join(self.config.caffe.solver_file_path, self.config.caffe.solver_file_prefix + str(neural_network_id) + self.PROTOTXT_FILE_EXT)
         return solver_path
+    #enddef
+    
+    def _createClassifyMeanFile(self, source_meanfile, target_meanfile):
+        # cilovy meanfile pro klasifikaci nebyl zadan, nebudeme ho vytvaret
+        if not target_meanfile:
+            return
+        #endif
+                        
+        # otevreni souboru s trenovaci mean file
+        try:
+            f = open(source_meanfile, 'rb')
+        except IOError:
+            raise self.ProcessException("Mean file soubor nepodarilo otevrit (" + source_meanfile + ")!")
+        
+        # nacteni mean file dat 
+        content = f.read()
+        f.close()
+        
+        # prevod mean file souboru do pole dat
+        blob = caffe_pb2.BlobProto()
+        blob.ParseFromString(content)
+        nparray = caffe.io.blobproto_to_array(blob)
+
+        # ulozeni pole dat do vysledneho souboru
+        f = open(target_meanfile, 'wb')
+        if not f:
+            raise self.ProcessException("Cilovy mean file soubor se nepodarilo otevrit pro zapis (" + target_meanfile + ")!")
+        #endif
+        numpy.save(f, nparray)
+        f.close()
     #enddef
 
 #endclass

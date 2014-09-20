@@ -19,7 +19,12 @@ VALIDATE = 'validate'
 # Konstanty, ktere urcuji nactene cesty ze souboru imagenet_train_val.prototxt
 SOURCE = 'source'
 MEAN_FILE = 'mean_file'    
-    
+
+def readProtoSolverFile(filepath):
+    solver_config = caffe_pb2.SolverParameter()
+    return _readProtoFile(filepath, solver_config)
+#enddef
+
 def readProtoLayerFile(filepath):
     layers_config = caffe_pb2.NetParameter()
     return _readProtoFile(filepath, layers_config)
@@ -64,8 +69,8 @@ def parseLayerPaths(proto):
                     results[TRAIN][SOURCE] = layer.data_param.source
                 #endif
 
-                if layer.data_param.mean_file:
-                    results[TRAIN][MEAN_FILE] = layer.data_param.mean_file
+                if layer.transform_param.mean_file:
+                    results[TRAIN][MEAN_FILE] = layer.transform_param.mean_file
                 #endif
             #endif
 
@@ -74,8 +79,8 @@ def parseLayerPaths(proto):
                     results[VALIDATE][SOURCE] = layer.data_param.source
                 #endif
 
-                if layer.data_param.mean_file:
-                    results[VALIDATE][MEAN_FILE] = layer.data_param.mean_file
+                if layer.transform_param.mean_file:
+                    results[VALIDATE][MEAN_FILE] = layer.transform_param.mean_file
                 #endif
             #endif
         #endif

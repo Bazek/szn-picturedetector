@@ -1,2 +1,5 @@
 src/* /www/picturedetector/test/bin/
 conf/*.conf /www/picturedetector/test/conf/
+solvers/* /www/picturedetector/test/solvers/
+models/* /www/picturedetector/test/models/
+images/* /www/picturedetector/test/images/
