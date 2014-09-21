@@ -24,7 +24,7 @@ import shutil
 import re
 
 import caffe
-import numpy
+import numpy as np
 from caffe.proto import caffe_pb2
 from google.protobuf import text_format
 from google.protobuf import descriptor
@@ -448,6 +448,7 @@ class PicturedetectorDaemon(Daemon):
         results = {}
         act_iteration = False
         has_snapshot = False
+        is_restored = False
         
         # Cteni konfiguracniho souboru
         for line in file:
@@ -457,22 +458,33 @@ class PicturedetectorDaemon(Daemon):
                 has_snapshot = True
             #endif
             
+            # Pokud jsme nekdy obnovili snapshot, tak ponechame predchozi hodnoty, protoze obnova snapshotu neobsahuje namerene hodnoty
+            m_restoring = re.search("Restoring\sprevious\ssolver\sstatus\sfrom", line, flags=re.IGNORECASE)
+            if m_restoring:
+                is_restored = True
+            #endif
+            
             # V souboru jsme nasli cislo testovane iterace
             m_iter = re.search("Iteration\s+(\d+),\s+Testing\s+net", line, flags=re.IGNORECASE)
             if m_iter:
-                act_iteration = int(m_iter.group(1))
-                results[act_iteration] = {
-                    self.ACCURACY: 0.0,
-                    self.LOSS: 0.0,
-                    self.SNAPSHOT: has_snapshot
-                }
+                if not is_restored:
+                    act_iteration = int(m_iter.group(1))
+                    results[act_iteration] = {
+                        self.ACCURACY: 0.0,
+                        self.LOSS: 0.0,
+                        self.SNAPSHOT: has_snapshot
+                    }
+                else:
+                    is_restored = False
+                #endif
+
                 
                 has_snapshot = False
             #endif
 
             # V souboru jsme nasli vysledky pro testovanou iteraci
             
-            m_result = re.search("Test\s+net\s+output\s+#(\d+):\s*[^=]+\s*((?:(?:[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)|nan))", line, flags=re.IGNORECASE)
+            m_result = re.search("Test\s+net\s+output\s+#(\d+):\s*[^=]+=\s*((?:(?:[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)|nan))", line, flags=re.IGNORECASE)
             if m_result:
                 value = m_result.group(2)
                 if value == 'nan':
@@ -490,6 +502,8 @@ class PicturedetectorDaemon(Daemon):
                 #endif
             #endif
             
+        #endfor
+        
         file.close()
         return results
     #enddef
@@ -523,19 +537,30 @@ class PicturedetectorDaemon(Daemon):
         # prevod mean file souboru do pole dat
         blob = caffe_pb2.BlobProto()
         blob.ParseFromString(content)
-        nparray = caffe.io.blobproto_to_array(blob)
-
+        nparray = blobproto_to_array(blob)
+        
         # ulozeni pole dat do vysledneho souboru
         f = open(target_meanfile, 'wb')
         if not f:
             raise self.ProcessException("Cilovy mean file soubor se nepodarilo otevrit pro zapis (" + target_meanfile + ")!")
         #endif
-        numpy.save(f, nparray)
+        np.save(f, nparray)
         f.close()
     #enddef
 
 #endclass
 
+def blobproto_to_array(blob, return_diff=False):
+  """Convert a blob proto to an array. In default, we will just return the data,
+  unless return_diff is True, in which case we will return the diff.
+  This method is copied from caffe io.py and is fixed (removed first argument blob.num)
+  """
+  if return_diff:
+    return np.array(blob.diff).reshape(
+        blob.channels, blob.height, blob.width)
+  else:
+    return np.array(blob.data).reshape(
+        blob.channels, blob.height, blob.width)
 
 
 def main():
