@@ -21,7 +21,8 @@ class ClassificationConfig(Config):
     class CaffeConfig(object):
         """ Parse caffe section """
         def __init__(self, parser, section="caffe"):
-            self.image_path = parser.get(section, "ImagePath")        
+            self.image_path = parser.get(section, "ImagePath")
+            self.print_results = parser.get(section, "PrintResults")
         #enddef
     #endclass
 
@@ -55,7 +56,7 @@ class ClassificationTest(object):
         #endfor
         
         print 'Classification test'
-        test_nums = [1, 2, 5, 10, 20]
+        test_nums = [1, 1, 2, 5, 10, 20]
         images_count = len(images)
         
         neural_networks = self.config.backend.proxy.neural_network.list()
@@ -63,13 +64,30 @@ class ClassificationTest(object):
             raise self.ProcessException("V databazi nebyla nalezena zadna neuronova sit")
         
         for neural_network in neural_networks['data']:
-            print '----- Testing neural network #' + neural_network['id'] + ' -----'
+            print '----- Testing neural network #' + str(neural_network['id']) + ' -----'
             for test_num in test_nums:
-                print 'Images count: ' + str(test_num) + ')'
+                print 'Images count: ' + str(test_num)
 
-                if test_num >= images_count:
+                images_param = []
+                images_slice = images[:test_num]
+                num = 0
+                for im in images_slice:
+                    images_param.append({"id": num, "path": im})
+                    num = num + 1
+                #endfor
+                
+                if images_count >= test_num:
                     start = time.time()
-                    self.config.backend.proxy.classify.classify(network['id'])
+                    try:
+                        results = self.config.backend.proxy.classify.classify(neural_network['id'], images_param)
+                        
+                        if int(self.config.caffe.print_results):
+                            print str(results)
+                        #endif
+                        
+                    except Exception, e:
+                        print 'EXCEPTION:' + str(e)
+                        
                     end = time.time()
                     print '  - Time: ' + str((end - start)) + ' s'
                 else:

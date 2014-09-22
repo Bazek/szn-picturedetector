@@ -1,4 +1,4 @@
-net: "/www/szn-picturedetector/caffe/models/szn-porn/imagenet_train_val.prototxt"
+net: "/home/hol/caffe/examples/imagenet/imagenet_train_val.prototxt"
 test_iter: 1000
 test_interval: 1000
 base_lr: 0.01

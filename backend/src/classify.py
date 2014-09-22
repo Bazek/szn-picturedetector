@@ -117,7 +117,7 @@ class ClassifyBackend(Backend):
             for id in categoryIds:
                 categories.append({"category":id,"percentage":float(scores[id])})
             
-            result[images[i]['id']] = categories;
+            result[str(images[i]['id'])] = categories;
             i += 1
             
         return result
