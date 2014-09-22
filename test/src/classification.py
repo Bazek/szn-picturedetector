@@ -11,7 +11,7 @@
 import sys
 sys.path.insert(0, '/www/picturedetector/common/module/')
 
-from szn_utils.configutils import Config
+from szn_utils.configutils import Config, ConfigBox
 import time
 import os
 
@@ -28,7 +28,7 @@ class ClassificationConfig(Config):
 
     def __init__(self, configFile):
         super(ClassificationConfig, self).__init__(configFile)
-        self.backend = Config(self.parser, "backend")
+        self.backend = ConfigBox(self.parser, "backend")
         self.caffe = self.CaffeConfig(self.parser, "caffe")
     #enddef
 
