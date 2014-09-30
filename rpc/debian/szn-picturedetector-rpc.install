@@ -1,2 +1,0 @@
-conf/*.conf /www/picturedetector/rpc/conf/
-doc/*.fastrpc.help /www/picturedetector/rpc/doc/

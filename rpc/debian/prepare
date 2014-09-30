@@ -1,7 +1,0 @@
-#!/bin/sh
-
-set -e
-
-# make logs accessible through HTTP
-/www/debhelper/prepare/szn-logy
-
