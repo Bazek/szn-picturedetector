@@ -10,42 +10,13 @@ from dbglog import dbg
 from rpc_backbone.decorators import rpcStatusDecorator, MySQL_master, MySQL_slave
 from lib.backend import Backend
 
-try:
-    import caffe
-except:
-    dbg.log("Cannot import caffe", ERR=2)
-#endtry
+import caffe
+
 
 class NeuralNetworkBackend(Backend):
     """
     Trida pro praci s neuronovou siti
     """
-
-    @rpcStatusDecorator('neural_network.function', 'S:,S:b')
-    @MySQL_master
-    def function(self, param=True):
-        """
-        Testovaci funkce
-
-        Signature:
-            neural_network.function(boolean param)
-
-        @param          Popis parametru
-                        Volitelny parametr. Default True.
-
-        Returns:
-            struct {
-                int status              200 = OK
-                string statusMessage    Textovy popis stavu
-                boolean data            Vraci nejakou hodnotu (Vzdycky v polozce data)
-            }
-        """
-
-        return {
-            "normal":   self.get(2),
-            "bypass":   self.get(2, bypass_rpc_status_decorator=True),
-        }
-    #enddef
 
     @rpcStatusDecorator('neural_network.get', 'S:i')
     @MySQL_slave
