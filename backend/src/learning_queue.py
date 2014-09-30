@@ -10,7 +10,7 @@ from lib.backend import Backend
 
 class LearningQueueBackend(Backend):
     @rpcStatusDecorator('learning_queue.get', 'S:i')
-    @MySQL_master
+    @MySQL_slave
     def get(self, neural_network_id):
         query = "SELECT neural_network_id, picture_set_id, start_iteration, status FROM learning_queue WHERE %s"
         self.cursor.execute(query, id)
@@ -24,7 +24,7 @@ class LearningQueueBackend(Backend):
     #enddef
     
     @rpcStatusDecorator('learning_queue.list', 'S:')
-    @MySQL_master
+    @MySQL_slave
     def list(self):
         query = "SELECT neural_network_id, picture_set_id, start_iteration, status FROM learning_queue"
         self.cursor.execute(query)
