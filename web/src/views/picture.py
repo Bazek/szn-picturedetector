@@ -73,13 +73,14 @@ def picture_set__edit_POST(id):
     picture_set = {
         "description":  request.form.get("description"),
     }
+    learning_subsets = [ subset.strip() for subset in request.form.get("subsets").split(",") ]
     if id:
         result = conf.backend.proxy.picture_set.edit(id, picture_set)
         if result.get("status") != 200:
             return redirect('/picture-set/edit/%d?status=picture_set_edit_failed'%id)
         #endif
     else:
-        result = conf.backend.proxy.picture_set.add(picture_set)
+        result = conf.backend.proxy.picture_set.add(picture_set, learning_subsets)
         if result.get("status") != 200:
             return redirect('/picture-set/edit?status=picture_set_add_failed')
         #endif
@@ -122,9 +123,9 @@ def picture_set__edit_pictures_POST(id, learning_set, learning_subset):
     data = request.files['file'].read()
     result = conf.backend.proxy.picture.save(id, learning_set, learning_subset, fastrpc.Binary(data))
     if result.get("status") != 200:
-        return redirect('/picture-set/edit/%d?status=picture_set_edit_pictures_failed'%id)
+        return redirect('/picture-set/edit/%d/%s/%s?status=picture_set_edit_pictures_failed'%(id, learning_set, learning_subset))
     #endif
-    return redirect('/picture-set/edit/%d?status=picture_set_edit_pictures_ok'%id)
+    return redirect('/picture-set/edit/%d/%s/%s?status=picture_set_edit_pictures_ok'%(id, learning_set, learning_subset))
 #enddef
 
 

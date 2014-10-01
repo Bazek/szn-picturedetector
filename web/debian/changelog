@@ -1,3 +1,10 @@
+szn-picturedetector-web (0.3.4) Seznam; urgency=low
+
+  * Vytvoreni nove obrazkove sady spolu s ucicimi podmnozinami
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Sep 2014 16:19:28 +0100
+
+
 szn-picturedetector-web (0.3.3) Seznam; urgency=low
 
   * Navigace a popisky v zalozce Obrazky
