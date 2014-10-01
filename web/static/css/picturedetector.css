@@ -70,6 +70,13 @@ Copyright (c) Nicolas Gallagher and Jonathan Neal
     color: white;
 }
 
+.status {
+    background-color: #61B842;
+    color: white;
+    padding-left: 10px;
+    margin-bottom: 10px;
+}
+
 .hidden {
 	display: none;
 }
@@ -84,7 +91,16 @@ Copyright (c) Nicolas Gallagher and Jonathan Neal
 	font-style: italic;
 }
 
-.pictures_counts {
+ul.pictures_counts {
     margin: auto 10px;
+    padding: 0px;
+    font-size: 90%;
+}
+
+ul.pictures_counts li, ul.pictures_counts li ul {
+    margin: auto 5px;
+    display:inline;
+    padding: 0px;
+    font-size: 90%;
 }
 

@@ -3,7 +3,7 @@ szn-picturedetector-backend (0.5.0) Seznam; urgency=low
   * Zobecneny podmnoziny ucicich sad obrazku:
   * Kazda obrazkova sada muze mit ted vice ucicich sad
 
- -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Fri, 1 Aug 2014 12:30:18 +0100
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Sep 2014 12:01:18 +0100
 
 
 szn-picturedetector-backend (0.4.0) Seznam; urgency=low

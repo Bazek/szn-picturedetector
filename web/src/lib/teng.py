@@ -16,6 +16,7 @@ from dbglog     import dbg
 from datetime   import datetime
 
 from app import conf
+from flask import request
 
 
 def render_teng(template, **data):
@@ -34,6 +35,7 @@ def render_teng(template, **data):
     #endif
 
     data["YEAR"] = datetime.now().year
+    data["STATUS"] = request.args.get("status")
 
     data_root = conf.teng.createDataRoot(data)
 

@@ -16,17 +16,18 @@
                     <td>#${id}</td>
                     <td>${description}</td>
                     <td>
-                        <?teng frag pictures_counts ?>
-                            <?teng frag training ?>
-                                <span class="pictures_counts training"><a href="/picture-set/edit/${picture_sets.id}/training">Trénovací</a>: <a href="/picture-set/edit/${picture_sets.id}/training/true">${true}</a> + <a href="/picture-set/edit/${picture_sets.id}/training/false">${false}</a></span>
+                        <ul class="pictures_counts">
+                            <?teng frag learning_sets ?>
+                                <li>
+                                    <a href="/picture-set/edit/${picture_sets.id}/${learning_sets.name}"><strong>${name}</strong></a>:
+                                    <ul>
+                                        <?teng frag learning_subsets ?>
+                                            <li><a href="/picture-set/edit/${picture_sets.id}/${learning_sets.name}/${name}">${name}(${count})</a></li>
+                                        <?teng endfrag ?>
+                                    </ul>
+                                </li>
                             <?teng endfrag ?>
-                            <?teng frag validation ?>
-                                <span class="pictures_counts validation"><a href="/picture-set/edit/${picture_sets.id}/validation">Validační</a>: <a href="/picture-set/edit/${picture_sets.id}/validation/true">${true}</a> + <a href="/picture-set/edit/${picture_sets.id}/validation/false">${false}</a></span>
-                            <?teng endfrag ?>
-                            <?teng frag testing ?>
-                                <span class="pictures_counts testing"><a href="/picture-set/edit/${picture_sets.id}/testing">Testovací</a>: <a href="/picture-set/edit/${picture_sets.id}/testing/true">${true}</a> + <a href="/picture-set/edit/${picture_sets.id}/testing/false">${false}</a></span>
-                            <?teng endfrag ?>
-                        <?teng endfrag ?>
+                        </ul>
                     </td>
                     <td>
                         <a href="/picture-set/edit/${id}" class="pure-button pure-button-xsmall">Upravit</a>

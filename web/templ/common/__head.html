@@ -24,6 +24,8 @@
                     <li <?teng if $menu=~"model" ?>class="pure-menu-selected"<?teng endif ?>><a href="/model">Modely</a></li>
                     <li <?teng if $menu=~"neural-network" ?>class="pure-menu-selected"<?teng endif ?>><a href="/neural-network">Neuronové sítě</a></li>
                     <li <?teng if $menu=~"picture" ?>class="pure-menu-selected"<?teng endif ?>><a href="/picture-set">Obrázky</a></li>
+                    
                 </ul>
             </div>
+            <?teng if $.STATUS ?><div class="status">${.STATUS}</div><?teng endif ?>
         </div>

@@ -26,7 +26,30 @@ import fastrpc
 def picture_set__list():
     result = conf.backend.proxy.picture_set.list()
     picture_sets = result.get("data")
-    return render_teng("picture-set_list.html", picture_sets=picture_sets)
+    picture_sets_teng = []
+    for picture_set in picture_sets:
+        picture_set_teng = {
+            "id":               picture_set["id"],
+            "description":      picture_set["description"],
+            "learning_sets":    [],
+        }
+        for learning_set in picture_set["pictures_counts"].iterkeys():
+            learning_set_teng = {
+                "name":             learning_set,
+                "learning_subsets": [],
+            }
+            for learning_subset,count in picture_set["pictures_counts"][learning_set].iteritems():
+                learning_subset_teng = {
+                    "name":         learning_subset,
+                    "count":        count,
+                }
+                learning_set_teng["learning_subsets"].append(learning_subset_teng)
+            #endfor
+            picture_set_teng["learning_sets"].append(learning_set_teng)
+        #endfor
+        picture_sets_teng.append(picture_set_teng)
+    #endfor
+    return render_teng("picture-set_list.html", picture_sets=picture_sets_teng)
 #enddef
 
 
