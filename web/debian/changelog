@@ -1,3 +1,10 @@
+szn-picturedetector-web (0.3.2) Seznam; urgency=low
+
+  * Navigace a popisky v zalozce Obrazky
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Sep 2014 15:29:20 +0100
+
+
 szn-picturedetector-web (0.3.1) Seznam; urgency=low
 
   * Prazdna zalozka Uceni
