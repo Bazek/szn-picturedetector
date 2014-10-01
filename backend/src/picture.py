@@ -6,6 +6,7 @@
 #
 
 from dbglog import dbg
+import metaserver.fastrpc as server
 
 from rpc_backbone.decorators import rpcStatusDecorator, MySQL_master, MySQL_slave
 from lib.backend import Backend
@@ -19,52 +20,57 @@ class PictureSetBackend(Backend):
     Trida pro praci s ucici sadou obrazku
     """
 
-    def _add_pictures_counts(self, picture_sets):
+    def _add_learning_subsets(self, picture_sets):
         if type(picture_sets) not in (list, tuple, set):
             picture_sets = [ picture_sets ]
         #endif
-        dbg.log("picture_sets: %s", picture_sets, DBG=1)
+        dbg.log("picture_sets: %s", str(picture_sets), DBG=1)
 
         if picture_sets:
             picture_sets_dict = {}
             for picture_set in picture_sets:
                 picture_set["pictures_counts"] = {}
-                for learning_set in self.config.pictures.learning_set_paths.keys():
-                    picture_set["pictures_counts"][learning_set] = { "true":0, "false":0 }
+                picture_set["learning_subsets"] = {}
+                for learning_set in self.config.pictures.LEARNING_SETS:
+                    picture_set["pictures_counts"][learning_set] = {}
                 #endfor
                 picture_sets_dict[picture_set["id"]] = picture_set
             #endfor
             dbg.log("picture_sets_dict: %s", repr(picture_sets_dict), DBG=1)
 
             query = """
-                SELECT `picture_set_id`, `learning_set`, `learning_subset`, COUNT(id) AS count
-                FROM picture
+                SELECT picture_set_id, learning_set.id AS learning_set, learning_subset.id AS learning_subset_id, learning_subset.name AS learning_subset_name, COUNT(picture.id) AS count
+                FROM learning_set JOIN learning_subset LEFT JOIN picture ON (picture.learning_set=learning_set.id AND picture.learning_subset_id=learning_subset.id)
                 WHERE picture_set_id IN (%s)
-                GROUP BY `picture_set_id`, `learning_set`, `learning_subset`
+                GROUP BY picture_set_id, learning_set.id, learning_subset.id
             """ % ",".join(map(str,picture_sets_dict.keys()))
             self.cursor.execute(query)
             pictures_counts = self.cursor.fetchall()
 
             dbg.log("pictures_counts: %s", repr(pictures_counts), DBG=1)
             for pictures_count in pictures_counts:
-                picture_sets_dict[pictures_count["picture_set_id"]]["pictures_counts"][pictures_count["learning_set"]][pictures_count["learning_subset"]] = pictures_count["count"]
+                picture_sets_dict[pictures_count["picture_set_id"]]["pictures_counts"][pictures_count["learning_set"]][pictures_count["learning_subset_name"]] = pictures_count["count"]
+                picture_sets_dict[pictures_count["picture_set_id"]]["learning_subsets"][pictures_count["learning_subset_name"]] = pictures_count["learning_subset_id"]
             #endfor
         #endif
+
+        return picture_sets
     #enddef
 
 
-    @rpcStatusDecorator('picture_set.add', 'S:S')
+    @rpcStatusDecorator('picture_set.add', 'S:SA')
     @MySQL_master
-    def add(self, picture_set):
+    def add(self, picture_set, learning_subsets):
         """
         Vytvori novou (prazdnou) ucici sadu obrazku
 
         Signature:
-            picture_set.add(struct picture_set)
+            picture_set.add(struct picture_set, array learning_subsets)
 
         @picture_set {
             string description      Popisek
         }
+        @learning_subsets           Pole nazvu ucicich podmnozin (>=2)
 
         Returns:
             struct {
@@ -74,20 +80,37 @@ class PictureSetBackend(Backend):
             }
         """
 
+        if not learning_subsets:  raise Exception(402, "Empty learning_subsets!")
+        if len(learning_subsets) == 1:  raise Exception(402, "Only one learning subset?")
+
+        # Ulozeni nove ucici sady do DB
         query = """
             INSERT INTO picture_set (`description`)
             VALUE (%(description)s)
         """
         self.cursor.execute(query, picture_set)
         picture_set_id = self.cursor.lastrowid
+        # Ulozeni ucicich podmnozin pro danou sadu
+        # TODO: Udelat na jeden dotaz
+        for learning_subset in learning_subsets: 
+            query = """
+                INSERT INTO learning_subset (`picture_set_id`, `name`)
+                VALUE (%s, %s)
+            """
+            self.cursor.execute(query, (picture_set_id, learning_subset))
+        #endfor
 
-        path = "%s/%d" % (self.config.pictures.base_path, picture_set_id)
-        if os.path.exists(path):
-            dbg.log("Path already exists: %s", path, WARN=3)
-        else:
-            dbg.log("Creating path: %s", path, INFO=1)
-            os.makedirs(path)
-        #endif
+        # Vytvoreni prazdne adresarove struktury
+        base_path = "%s/%d" % (self.config.pictures.base_path, picture_set_id)
+        self._makepath(base_path)
+        for learning_set in self.config.pictures.LEARNING_SETS:
+            learning_set_path = "%s/%s" % (base_path, learning_set)
+            self._makepath(learning_set_path)
+            for learning_subset in learning_subsets:
+                learning_subset_path = "%s/%s" % (learning_set_path, learning_subset)
+                self._makepath(learning_subset_path)
+            #endfor
+        #endfor
 
         return picture_set_id
     #enddef
@@ -109,19 +132,15 @@ class PictureSetBackend(Backend):
                     int id                  Id sady
                     string description      Popisek
                     struct pictures_counts {
-                        struct training {
-                            int true            Pocet trenovacich obrazku z podmnoziny true
-                            int false           Pocet trenovacich obrazku z podmnoziny false
-                        }
-                        struct validation {
-                            int true            Pocet validacnich obrazku z podmnoziny true
-                            int false           Pocet validacnich obrazku z podmnoziny false
-                        }
-                        struct testing {
-                            int true            Pocet testovacich obrazku z podmnoziny true
-                            int false           Pocet testovacich obrazku z podmnoziny false
-                        }
+                        struct training         Slovnikova struktura, kde klicem je nazev ucici podmnoziny
+                                                a hodnotou je pocet trenovacich obrazku z teto podmnoziny
+                        struct validation       Slovnikova struktura, kde klicem je nazev ucici podmnoziny
+                                                a hodnotou je pocet validacnich obrazku z teto podmnoziny
+                        struct testing          Slovnikova struktura, kde klicem je nazev ucici podmnoziny
+                                                a hodnotou je pocet testovacich obrazku z teto podmnoziny
                     }
+                    struct learning_subsets     Slovnikova struktura, kde klicem je nazev ucici podmnoziny
+                                                a hodnotou je id teto podmnoziny
                 }
             }
         """
@@ -129,11 +148,11 @@ class PictureSetBackend(Backend):
         query = """
             SELECT `id`, `description`
             FROM picture_set
-            ORDER BY id ASC
+            ORDER BY id DESC
         """
         self.cursor.execute(query)
         picture_sets = self.cursor.fetchall()
-        self._add_pictures_counts(picture_sets)
+        self._add_learning_subsets(picture_sets)
         return picture_sets
     #enddef
 
@@ -154,19 +173,15 @@ class PictureSetBackend(Backend):
                     int id                  Id sady
                     string description      Popisek
                     struct pictures_counts {
-                        struct training {
-                            int true            Pocet trenovacich obrazku z podmnoziny true
-                            int false           Pocet trenovacich obrazku z podmnoziny false
-                        }
-                        struct validation {
-                            int true            Pocet validacnich obrazku z podmnoziny true
-                            int false           Pocet validacnich obrazku z podmnoziny false
-                        }
-                        struct testing {
-                            int true            Pocet testovacich obrazku z podmnoziny true
-                            int false           Pocet testovacich obrazku z podmnoziny false
-                        }
+                        struct training         Slovnikova struktura, kde klicem je nazev ucici podmnoziny
+                                                a hodnotou je pocet trenovacich obrazku z teto podmnoziny
+                        struct validation       Slovnikova struktura, kde klicem je nazev ucici podmnoziny
+                                                a hodnotou je pocet validacnich obrazku z teto podmnoziny
+                        struct testing          Slovnikova struktura, kde klicem je nazev ucici podmnoziny
+                                                a hodnotou je pocet testovacich obrazku z teto podmnoziny
                     }
+                    struct learning_subsets     Slovnikova struktura, kde klicem je nazev ucici podmnoziny
+                                                a hodnotou je id teto podmnoziny
                 }
             }
         """
@@ -181,7 +196,7 @@ class PictureSetBackend(Backend):
         if not picture_set:
             raise Exception(404, "Picture set not found")
         #endif
-        self._add_pictures_counts(picture_set)
+        self._add_learning_subsets(picture_set)
         return picture_set
     #enddef
 
@@ -189,7 +204,7 @@ class PictureSetBackend(Backend):
     @MySQL_master
     def edit(self, picture_set_id, params):
         """
-        Testovaci funkce
+        Zmeni existujici ucici sadu obrazku
 
         Signature:
             picture_set.edit(int picture_set_id, struct param)
@@ -274,20 +289,17 @@ class PictureBackend(Backend):
         """
         """
 
-        if learning_set not in self.config.pictures.learning_set_paths:
+        if learning_set not in self.config.pictures.LEARNING_SETS:
             raise Exception(402, "Unknown learning_set: %s" % learning_set)
         #endif
-        if learning_subset not in ("true", "false"):
+        picture_set = server.globals.rpcObjects['picture_set'].get(picture_set_id, bypass_rpc_status_decorator=True)
+        if learning_subset not in picture_set["learning_subsets"]:
             raise Exception(402, "Unknown learning_subset: %s" % learning_subset)
         #endif
 
         # Ulozeni souboru na disk
-        path = "%s/%d/%s" % (self.config.pictures.base_path, picture_set_id, self.config.pictures.learning_set_paths[learning_set][learning_subset])
+        path = "%s/%d/%s/%s" % (self.config.pictures.base_path, picture_set_id, learning_set, learning_subset)
         dbg.log("picture.save: Path=%s", path, DBG=1)
-        if not os.path.exists(path):
-            dbg.log("Creating path: %s", path, INFO=1)
-            os.makedirs(path)
-        #endif
         file_name = md5(binary.data).hexdigest()
         file_path = "%s/%s" % (path, file_name)
         f = open(file_path, "wb")
@@ -297,10 +309,10 @@ class PictureBackend(Backend):
 
         # Ulozeni metadat do DB
         query = """
-            INSERT INTO picture (`picture_set_id`,`learning_set`,`learning_subset`,`hash`)
-            VALUE (%s, %s, %s, %s)
+            INSERT INTO picture (`learning_set`,`learning_subset_id`,`hash`)
+            VALUE (%s, %s, %s)
         """
-        params = (picture_set_id, learning_set, learning_subset, file_name)
+        params = (learning_set, picture_set["learning_subsets"][learning_subset], file_name)
         self.cursor.execute(query, params)
         picture_id = self.cursor.lastrowid
 
@@ -317,26 +329,31 @@ class PictureBackend(Backend):
         """
 
         # Kontrola parametru
-        if "learning_set" in params and params["learning_set"] not in self.config.pictures.learning_set_paths:
+        if "learning_set" in params and params["learning_set"] not in self.config.pictures.LEARNING_SETS:
             raise Exception(402, "Unknown learning_set: %s" % params["learning_set"])
         #endif
-        if "learning_subset" in params and params["learning_subset"] not in ("true", "false"):
-            raise Exception(402, "Unknown learning_subset: %s" % params["learning_subset"])
+        picture_set = server.globals.rpcObjects['picture_set'].get(picture_set_id, bypass_rpc_status_decorator=True)
+        params["picture_set_id"] = picture_set_id
+        if "learning_subset" in params:
+            if params["learning_subset"] in picture_set["learning_subsets"]:
+                params["learning_subset"] = picture_set["learning_subsets"][params["learning_subset"]]
+            else:
+                raise Exception(402, "Unknown learning_subset: %s" % params["learning_subset"])
+            #endif
         #endif
 
         filterDict = {
             "picture_set_id":   "picture_set_id = %(picture_set_id)s",
             "learning_set":     "learning_set = %(learning_set)s",
-            "learning_subset":  "learning_subset = %(learning_subset)s",
+            "learning_subset":  "learning_subset_id = %(learning_subset)s",
         }
-        params["picture_set_id"] = picture_set_id
         WHERE = self._getFilter(filterDict, params)
 
         query = """
-            SELECT `id`, `picture_set_id`, `learning_set`, `learning_subset`, `hash`
-            FROM picture
+            SELECT picture.`id`, `picture_set_id`, `learning_set`, `learning_subset`.name AS learning_subset, `hash`
+            FROM picture LEFT JOIN learning_subset ON (picture.learning_subset_id=learning_subset.id)
             """ + WHERE + """
-            ORDER BY id ASC
+            ORDER BY id DESC
         """
         self.cursor.execute(query, params)
         pictures = self.cursor.fetchall()

@@ -1,8 +1,13 @@
-DROP TABLE IF EXISTS `model`;
+
+DROP TABLE IF EXISTS `solver_config`;
+DROP TABLE IF EXISTS `learning_queue`;
 DROP TABLE IF EXISTS `picture`;
+DROP TABLE IF EXISTS `learning_subset`;
+DROP TABLE IF EXISTS `learning_set`;
 DROP TABLE IF EXISTS `picture_set`;
 DROP TABLE IF EXISTS `neural_network`;
-DROP TABLE IF EXISTS `learning_queue`;
+DROP TABLE IF EXISTS `model`;
+
 
 CREATE TABLE `model` (
   `id` INT NOT NULL AUTO_INCREMENT,
@@ -28,15 +33,31 @@ CREATE TABLE `picture_set` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Picture set';
 
-CREATE TABLE `picture` (
+CREATE TABLE `learning_set` (
+  `id` CHAR(16) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Learning set';
+INSERT INTO `learning_set` (`id`)
+VALUES ("training"), ("validation"), ("testing");
+
+CREATE TABLE `learning_subset` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `picture_set_id` INT NOT NULL,
-  `learning_set` ENUM('training','validation','testing') NOT NULL,
-  `learning_subset` INT(3) NOT NULL,
-  `hash` CHAR(32) NOT NULL,
+  `name` VARCHAR(255) NOT NULL,
   PRIMARY KEY (`id`),
   FOREIGN KEY (`picture_set_id`) REFERENCES `picture_set` (`id`) ON DELETE CASCADE,
-  UNIQUE KEY unique_picture_in_learning_subset (`picture_set_id`, `learning_set`, `learning_subset`, `hash`)
+  UNIQUE KEY unique_learning_subset_in_picture_set (`picture_set_id`, `name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Learning subset';
+
+CREATE TABLE `picture` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `learning_set` CHAR(16) NOT NULL,
+  `learning_subset_id` INT NOT NULL,
+  `hash` CHAR(32) NOT NULL,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`learning_set`) REFERENCES `learning_set` (`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`learning_subset_id`) REFERENCES `learning_subset` (`id`) ON DELETE CASCADE,
+  UNIQUE KEY unique_picture_in_learning_subset (`learning_set`, `learning_subset_id`, `hash`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Picture';
 
 CREATE TABLE `learning_queue` (
@@ -48,7 +69,7 @@ CREATE TABLE `learning_queue` (
   FOREIGN KEY (`picture_set_id`) REFERENCES `picture_set` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Learning queue. Each neural network can have only one record.';
 
-CREATE TABLE IF NOT EXISTS `solver_config` (
+CREATE TABLE `solver_config` (
   `neural_network_id` INT NOT NULL,
   `net` varchar(255) NOT NULL,
   `stepsize` INT NULL DEFAULT NULL,

@@ -9,6 +9,7 @@
 from dbglog import dbg
 from datetime import datetime
 from rpc_backbone.decorators import MySQL_master
+import os
 
 
 class BackendException(Exception):
@@ -25,6 +26,15 @@ class Backend(object):
         # Config object holding all information
         self.server = server
         self.config = server.globals.config
+    #enddef
+
+    def _makepath(self, path):
+        if os.path.exists(path):
+            dbg.log("Path already exists: %s", path, WARN=2)
+        else:
+            dbg.log("Creating path: %s", path, INFO=1)
+            os.makedirs(path)
+        #endif
     #enddef
 
     def _getFilter(self, filterDict, valuesDict, prefix="WHERE", separator=" AND ", empty=True):
