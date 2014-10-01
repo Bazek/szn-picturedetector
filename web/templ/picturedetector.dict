@@ -1,0 +1,24 @@
+
+STATUS__picture_set_not_found                   Sada obrázků nebyla nalezena
+STATUS__picture_set_edit_failed                 Editace sady obrázků nebyla úspěšná
+STATUS__picture_set_add_failed                  Nepodařilo se vytvořit novou sadu obrázků
+STATUS__picture_set_edit_ok                     Sada obrázků byla úspěšně uložena
+STATUS__picture_set_edit_pictures_failed        Nepodařilo se uložit nový obrázek
+STATUS__picture_set_edit_pictures_ok            Nový obrázek byl úspěšně uložen
+STATUS__picture_set_delete_failed               Nepodařilo se smazat sadu obrázků
+STATUS__picture_set_delete_ok                   Sada obrázků byla úspěšně smazána
+
+STATUS__neural_network_not_found                Neuronová síť nebyla nalezena
+STATUS__neural_network_edit_failed              Editace neuronové sítě nebyla úspěšná
+STATUS__neural_network_add_failed               Nepodařilo se vytvořit novou neuronovou síť
+STATUS__neural_network_edit_ok                  Neuronová síť byla úspěšně uložena
+STATUS__neural_network_delete_failed            Nepodařilo se smazat neuronovou síť
+STATUS__neural_network_delete_ok                Neuronová síť byla smazána
+
+STATUS__model_not_found                         Model nebyl nalezen
+STATUS__model_edit_failed                       Editace modelu nebyla úspěšná
+STATUS__model_add_failed                        Nepodařilo se vytvořit nový model
+STATUS__model_edit_ok                           Model byl úspěšně uložen
+STATUS__model_delete_failed                     Nepodařilo se smazat model
+STATUS__model_delete_ok                         Model byl úspěšně smazán
+

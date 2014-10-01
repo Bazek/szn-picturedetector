@@ -36,7 +36,7 @@ def neural_network__edit_GET(id):
     if id:
         result = conf.backend.proxy.neural_network.get(id)
         if result.get("status") != 200:
-            return redirect('/neural-network?status=neural-network_not_found')
+            return redirect('/neural-network?status=neural_network_not_found')
         #endif
         neural_network = result.get("data")
     #endif
@@ -53,16 +53,16 @@ def neural_network__edit_POST(id):
     if id:
         result = conf.backend.proxy.neural_network.edit(id, neural_network)
         if result.get("status") != 200:
-            return redirect('/neural-network/edit/%d?status=neural-network_edit_failed'%id)
+            return redirect('/neural-network/edit/%d?status=neural_network_edit_failed'%id)
         #endif
     else:
         result = conf.backend.proxy.neural_network.add(neural_network)
         if result.get("status") != 200:
-            return redirect('/neural-network/edit?status=neural-network_add_failed')
+            return redirect('/neural-network/edit?status=neural_network_add_failed')
         #endif
         id = result.get("data")
     #endif
-    return redirect('/neural-network/edit/%d?status=neural-network_edit_ok'%id)
+    return redirect('/neural-network/edit/%d?status=neural_network_edit_ok'%id)
 #enddef
 
 
@@ -70,7 +70,7 @@ def neural_network__edit_POST(id):
 def neural_network__delete_GET(id):
     result = conf.backend.proxy.neural_network.delete(id)
     if result.get("status") != 200:
-        return redirect('/neural-network?status=neural-network_delete_failed')
+        return redirect('/neural-network?status=neural_network_delete_failed')
     #endif
-    return redirect('/neural-network?status=neural-network_delete_ok')
+    return redirect('/neural-network?status=neural_network_delete_ok')
 #enddef
