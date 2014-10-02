@@ -14,7 +14,7 @@ sys.path.insert(0, '/www/picturedetector/common/module/')
 from szn_utils.configutils import Config, ConfigBox
 import time
 import os
-
+import fastrpc
 
 class ClassificationConfig(Config):
 
@@ -66,29 +66,31 @@ class ClassificationTest(object):
         for neural_network in neural_networks['data']:
             print '----- Testing neural network #' + str(neural_network['id']) + ' -----'
             for test_num in test_nums:
-                print 'Images count: ' + str(test_num)
-
-                images_param = []
-                images_slice = images[:test_num]
-                num = 0
-                for im in images_slice:
-                    images_param.append({"id": num, "path": im})
-                    num = num + 1
-                #endfor
-                
+                print 'Images count: ' + str(test_num)                
                 if images_count >= test_num:
-                    start = time.time()
+                    images_param = []
+                    images_slice = images[:test_num]
+                    num = 0
+                    for im in images_slice:
+                        f = open(im, 'r')
+                        data = f.read()
+                        f.close()
+                        images_param.append({"id": num, "path": im, "data": fastrpc.Binary(data)})
+                        num = num + 1
+                    #endfor
+
                     try:
+                        start = time.time()
                         results = self.config.backend.proxy.classify.classify(neural_network['id'], images_param)
+                        end = time.time()
                         
-                        if int(self.config.caffe.print_results):
+                        if self.config.caffe.print_results == 1:
                             print str(results)
                         #endif
                         
                     except Exception, e:
                         print 'EXCEPTION:' + str(e)
                         
-                    end = time.time()
                     print '  - Time: ' + str((end - start)) + ' s'
                 else:
                     print 'Not enough images'

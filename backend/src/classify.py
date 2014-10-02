@@ -11,6 +11,14 @@ from lib.backend import Backend
 from rpc_backbone.decorators import rpcStatusDecorator
 import caffe
 import numpy
+from skimage.util.dtype import convert
+
+try:
+    import imread as _imread
+except ImportError:
+    raise ImportError("Imread could not be found"
+        "Please refer to http://pypi.python.org/pypi/imread/ "
+        "for further instructions.")
 
 class ClassifyBackend(Backend):
     
@@ -87,10 +95,12 @@ class ClassifyBackend(Backend):
         # array of loaded images
         input_images=[]
         for image in images:
-            input_images.append(caffe.io.load_image(image['path']))
+            if image['data']:
+                input_images.append(self._load_image_from_binary(image['data'].data))
+            elif image['path']:
+                input_images.append(caffe.io.load_image(image['path']))
+            #endif
 
-        dbg.log("input_images %s", input_images, INFO=3) 
-        
         # start prediction
         prediction = net.predict(input_images)
         
@@ -116,7 +126,7 @@ class ClassifyBackend(Backend):
             categories = []
             for id in categoryIds:
                 categories.append({"category":id,"percentage":float(scores[id])})
-            
+
             result[str(images[i]['id'])] = categories;
             i += 1
             
@@ -124,4 +134,8 @@ class ClassifyBackend(Backend):
 
     #enddef
     
+    def _load_image_from_binary(self, data, format = 'jpg', as_grey=False, return_metadate=False):
+        blob_data = _imread.imread_from_blob(data, format)
+        return convert(blob_data, 'float32')
+            
 #endclass
