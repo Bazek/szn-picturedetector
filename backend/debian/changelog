@@ -1,9 +1,16 @@
+szn-picturedetector-backend (0.5.1) Seznam; urgency=low
+
+  * Kazda ucici podmnozina bude mit svoje unikatni id pouze v ramci obrazkove sady
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 6 Oct 2014 12:17:40 +0100
+
+
 szn-picturedetector-backend (0.5.0) Seznam; urgency=low
 
   * Zobecneny podmnoziny ucicich sad obrazku:
   * Kazda obrazkova sada muze mit ted vice ucicich sad
 
- -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Sep 2014 12:01:18 +0100
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Oct 2014 12:01:18 +0100
 
 
 szn-picturedetector-backend (0.4.0) Seznam; urgency=low

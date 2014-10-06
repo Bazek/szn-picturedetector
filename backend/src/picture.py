@@ -39,10 +39,10 @@ class PictureSetBackend(Backend):
             dbg.log("picture_sets_dict: %s", repr(picture_sets_dict), DBG=1)
 
             query = """
-                SELECT picture_set_id, learning_set.id AS learning_set, learning_subset.id AS learning_subset_id, learning_subset.name AS learning_subset_name, COUNT(picture.id) AS count
-                FROM learning_set JOIN learning_subset LEFT JOIN picture ON (picture.learning_set=learning_set.id AND picture.learning_subset_id=learning_subset.id)
-                WHERE picture_set_id IN (%s)
-                GROUP BY picture_set_id, learning_set.id, learning_subset.id
+                SELECT learning_subset.picture_set_id AS picture_set_id, learning_set.id AS learning_set, learning_subset.id AS learning_subset_id, learning_subset.name AS learning_subset_name, COUNT(picture.id) AS count
+                FROM learning_set JOIN learning_subset LEFT JOIN picture ON (picture.learning_set=learning_set.id AND picture.picture_set_id=learning_subset.picture_set_id AND picture.learning_subset_id=learning_subset.id)
+                WHERE learning_subset.picture_set_id IN (%s)
+                GROUP BY learning_subset.picture_set_id, learning_set.id, learning_subset.id
             """ % ",".join(map(str,picture_sets_dict.keys()))
             self.cursor.execute(query)
             pictures_counts = self.cursor.fetchall()
@@ -309,10 +309,10 @@ class PictureBackend(Backend):
 
         # Ulozeni metadat do DB
         query = """
-            INSERT INTO picture (`learning_set`,`learning_subset_id`,`hash`)
-            VALUE (%s, %s, %s)
+            INSERT INTO picture (`picture_set_id`,`learning_set`,`learning_subset_id`,`hash`)
+            VALUE (%s, %s, %s, %s)
         """
-        params = (learning_set, picture_set["learning_subsets"][learning_subset], file_name)
+        params = (picture_set_id, learning_set, picture_set["learning_subsets"][learning_subset], file_name)
         self.cursor.execute(query, params)
         picture_id = self.cursor.lastrowid
 
@@ -334,24 +334,21 @@ class PictureBackend(Backend):
         #endif
         picture_set = server.globals.rpcObjects['picture_set'].get(picture_set_id, bypass_rpc_status_decorator=True)
         params["picture_set_id"] = picture_set_id
-        if "learning_subset" in params:
-            if params["learning_subset"] in picture_set["learning_subsets"]:
-                params["learning_subset"] = picture_set["learning_subsets"][params["learning_subset"]]
-            else:
-                raise Exception(402, "Unknown learning_subset: %s" % params["learning_subset"])
-            #endif
+        if "learning_subset" in params and params["learning_subset"] not in picture_set["learning_subsets"]:
+            raise Exception(402, "Unknown learning_subset: %s" % params["learning_subset"])
         #endif
 
         filterDict = {
-            "picture_set_id":   "picture_set_id = %(picture_set_id)s",
-            "learning_set":     "learning_set = %(learning_set)s",
-            "learning_subset":  "learning_subset_id = %(learning_subset)s",
+            "picture_set_id":       "picture.picture_set_id = %(picture_set_id)s",
+            "learning_set":         "picture.learning_set = %(learning_set)s",
+            "learning_subset_id":   "picture.learning_subset_id = %(learning_subset_id)s",
+            "learning_subset":      "learning_subset.name = %(learning_subset)s",
         }
         WHERE = self._getFilter(filterDict, params)
 
         query = """
-            SELECT picture.`id`, `picture_set_id`, `learning_set`, `learning_subset`.name AS learning_subset, `hash`
-            FROM picture LEFT JOIN learning_subset ON (picture.learning_subset_id=learning_subset.id)
+            SELECT picture.`id`, picture.`picture_set_id`, picture.`learning_set`, `learning_subset`.name AS learning_subset, picture.`hash`
+            FROM picture LEFT JOIN learning_subset ON (picture.picture_set_id=learning_subset.picture_set_id AND picture.learning_subset_id=learning_subset.id)
             """ + WHERE + """
             ORDER BY id DESC
         """

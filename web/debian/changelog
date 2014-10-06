@@ -2,21 +2,21 @@ szn-picturedetector-web (0.3.4) Seznam; urgency=low
 
   * Vytvoreni nove obrazkove sady spolu s ucicimi podmnozinami
 
- -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Sep 2014 16:19:28 +0100
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Oct 2014 16:19:28 +0100
 
 
 szn-picturedetector-web (0.3.3) Seznam; urgency=low
 
   * Navigace a popisky v zalozce Obrazky
 
- -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Sep 2014 15:55:12 +0100
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Oct 2014 15:55:12 +0100
 
 
 szn-picturedetector-web (0.3.2) Seznam; urgency=low
 
   * Navigace a popisky v zalozce Obrazky
 
- -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Sep 2014 15:29:20 +0100
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Oct 2014 15:29:20 +0100
 
 
 szn-picturedetector-web (0.3.1) Seznam; urgency=low
@@ -24,7 +24,7 @@ szn-picturedetector-web (0.3.1) Seznam; urgency=low
   * Prazdna zalozka Uceni
   * Slovnikove popisky statusu
 
- -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Sep 2014 14:13:19 +0100
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Oct 2014 14:13:19 +0100
 
 
 szn-picturedetector-web (0.3.0) Seznam; urgency=low
@@ -32,7 +32,7 @@ szn-picturedetector-web (0.3.0) Seznam; urgency=low
   * Zobecneny podmnoziny ucicich sad obrazku:
   * Kazda obrazkova sada muze mit ted vice ucicich sad
 
- -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Sep 2014 12:01:18 +0100
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 1 Oct 2014 12:01:18 +0100
 
 
 szn-picturedetector-web (0.2.0) Seznam; urgency=low
