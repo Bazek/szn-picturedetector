@@ -1,3 +1,10 @@
+szn-picturedetector-web (0.3.5) Seznam; urgency=low
+
+  * Barevne status hlasky
+
+ -- Petr Bartunek <petr.bartunek@firma.seznam.cz>  Wed, 8 Oct 2014 17:06:10 +0100
+
+
 szn-picturedetector-web (0.3.4) Seznam; urgency=low
 
   * Vytvoreni nove obrazkove sady spolu s ucicimi podmnozinami

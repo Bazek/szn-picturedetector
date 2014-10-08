@@ -58,7 +58,7 @@ CREATE TABLE `picture` (
   PRIMARY KEY (`id`),
   FOREIGN KEY (`learning_set`) REFERENCES `learning_set` (`id`) ON DELETE CASCADE,
   FOREIGN KEY (`picture_set_id`, `learning_subset_id`) REFERENCES `learning_subset` (`picture_set_id`, `id`) ON DELETE CASCADE,
-  UNIQUE KEY unique_picture_in_learning_subset (`learning_set`, `learning_subset_id`, `hash`)
+  UNIQUE KEY unique_picture_in_learning_subset (`picture_set_id`, `learning_set`, `learning_subset_id`, `hash`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Picture';
 
 CREATE TABLE `learning_queue` (

@@ -36,6 +36,7 @@ def render_teng(template, **data):
 
     data["YEAR"] = datetime.now().year
     data["STATUS"] = request.args.get("status")
+    data["MESSAGE"] = request.args.get("message")
 
     data_root = conf.teng.createDataRoot(data)
 

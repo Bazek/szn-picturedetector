@@ -75,10 +75,15 @@ Copyright (c) Nicolas Gallagher and Jonathan Neal
 }
 
 .status {
-    background-color: #61B842;
     color: white;
     padding-left: 10px;
     margin-bottom: 10px;
+}
+.status-0 {
+    background-color: #51A832;
+}
+.status-1 {
+    background-color: #B84132;
 }
 
 a.button-add {

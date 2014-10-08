@@ -37,7 +37,7 @@ def model__edit_GET(id):
     if id:
         result = conf.backend.proxy.model.get(id)
         if result.get("status") != 200:
-            return redirect('/model?status=model_not_found')
+            return redirect('/model?status=1&message=model_not_found')
         #endif
         model = result.get("data")
     #endif
@@ -54,16 +54,16 @@ def model__edit_POST(id):
     if id:
         result = conf.backend.proxy.picture_set.edit(id, picture_set)
         if result.get("status") != 200:
-            return redirect('/model/edit/%d?status=model_edit_failed'%id)
+            return redirect('/model/edit/%d?status=1&message=model_edit_failed'%id)
         #endif
     else:
         result = conf.backend.proxy.picture_set.add(picture_set)
         if result.get("status") != 200:
-            return redirect('/model/edit?status=model_add_failed')
+            return redirect('/model/edit?status=1&message=model_add_failed')
         #endif
         id = result.get("data")
     #endif
-    return redirect('/model/edit/%d?status=model_edit_ok'%id)
+    return redirect('/model/edit/%d?status=0&message=model_edit_ok'%id)
 #enddef
 
 
@@ -71,7 +71,7 @@ def model__edit_POST(id):
 def model__delete_GET(id):
     result = conf.backend.proxy.model.delete(id)
     if result.get("status") != 200:
-        return redirect('/model?status=model_delete_failed')
+        return redirect('/model?status=1&message=model_delete_failed')
     #endif
-    return redirect('/model?status=model_delete_ok')
+    return redirect('/model?status=0&message=model_delete_ok')
 #enddef

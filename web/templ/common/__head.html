@@ -27,7 +27,7 @@
                     <li <?teng if $menu=~"neural-network" ?>class="pure-menu-selected"<?teng endif ?>><a href="/neural-network">Neuronové sítě</a></li>
                 </ul>
             </div>
-            <?teng if $.STATUS ?><div class="status">${@('STATUS__'++$.STATUS)}</div><?teng endif ?>
+            <?teng if exists(.STATUS) ?><div class="status status-${.STATUS}">${@('STATUS__'++$.MESSAGE)}</div><?teng endif ?>
         </div>
         
         <div id="content" class="content">

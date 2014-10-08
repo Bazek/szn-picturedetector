@@ -60,7 +60,7 @@ def picture_set__edit_GET(id):
     if id:
         result = conf.backend.proxy.picture_set.get(id)
         if result.get("status") != 200:
-            return redirect('/picture-set?status=picture_set_not_found')
+            return redirect('/picture-set?status=1&message=picture_set_not_found')
         #endif
         picture_set = result.get("data")
     #endif
@@ -77,16 +77,16 @@ def picture_set__edit_POST(id):
     if id:
         result = conf.backend.proxy.picture_set.edit(id, picture_set)
         if result.get("status") != 200:
-            return redirect('/picture-set/edit/%d?status=picture_set_edit_failed'%id)
+            return redirect('/picture-set/edit/%d?status=1&message=picture_set_edit_failed'%id)
         #endif
     else:
         result = conf.backend.proxy.picture_set.add(picture_set, learning_subsets)
         if result.get("status") != 200:
-            return redirect('/picture-set/edit?status=picture_set_add_failed')
+            return redirect('/picture-set/edit?status=1&message=picture_set_add_failed')
         #endif
         id = result.get("data")
     #endif
-    return redirect('/picture-set/edit/%d?status=picture_set_edit_ok'%id)
+    return redirect('/picture-set/edit/%d?status=0&message=picture_set_edit_ok'%id)
 #enddef
 
 
@@ -97,7 +97,7 @@ def picture_set__edit_pictures_GET(id, learning_set, learning_subset):
     if id:
         result = conf.backend.proxy.picture_set.get(id)
         if result.get("status") != 200:
-            return redirect('/picture-set?status=picture_set_not_found')
+            return redirect('/picture-set?status=1&message=picture_set_not_found')
         #endif
         picture_set = result.get("data")
         params = {}
@@ -105,7 +105,7 @@ def picture_set__edit_pictures_GET(id, learning_set, learning_subset):
         if learning_subset:  params["learning_subset"] = learning_subset
         result = conf.backend.proxy.picture.list(id, params)
         if result.get("status") != 200:
-            return redirect('/picture-set?status=picture_set_not_found')
+            return redirect('/picture-set?status=1&message=picture_set_not_found')
         #endif
         pictures = result.get("data")
     #endif
@@ -123,9 +123,9 @@ def picture_set__edit_pictures_POST(id, learning_set, learning_subset):
     data = request.files['file'].read()
     result = conf.backend.proxy.picture.save(id, learning_set, learning_subset, fastrpc.Binary(data))
     if result.get("status") != 200:
-        return redirect('/picture-set/edit/%d/%s/%s?status=picture_set_edit_pictures_failed'%(id, learning_set, learning_subset))
+        return redirect('/picture-set/edit/%d/%s/%s?status=1&message=picture_set_edit_pictures_failed'%(id, learning_set, learning_subset))
     #endif
-    return redirect('/picture-set/edit/%d/%s/%s?status=picture_set_edit_pictures_ok'%(id, learning_set, learning_subset))
+    return redirect('/picture-set/edit/%d/%s/%s?status=0&message=picture_set_edit_pictures_ok'%(id, learning_set, learning_subset))
 #enddef
 
 
@@ -133,7 +133,7 @@ def picture_set__edit_pictures_POST(id, learning_set, learning_subset):
 def picture_set__delete_GET(id):
     result = conf.backend.proxy.picture_set.delete(id)
     if result.get("status") != 200:
-        return redirect('/picture-set?status=picture_set_delete_failed')
+        return redirect('/picture-set?status=1&message=picture_set_delete_failed')
     #endif
-    return redirect('/picture-set?status=picture_set_delete_ok')
+    return redirect('/picture-set?status=0&message=picture_set_delete_ok')
 #enddef
