@@ -19,7 +19,7 @@ from classify import ClassifyBackend
 from model import ModelBackend
 from solver_config import SolverConfigBackend
 from learning_queue import LearningQueueBackend
-
+from train_model import TrainModelBackend
 
 def init(cfg):
     # Nacitani konfigurace
@@ -39,6 +39,7 @@ def init(cfg):
         'model': ModelBackend(server),
         'solver_config': SolverConfigBackend(server),
         'learning_queue': LearningQueueBackend(server),
+        'train_model': TrainModelBackend(server),
     }
     # Monitorovaci metoda
     server.registerHEADMethod(head)

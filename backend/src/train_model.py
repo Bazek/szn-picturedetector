@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # DESCRIPTION
-#   Modely pro klasifikaci pomoci neuoronove site
+#   Modely pro uceni neuronovych siti
 #
 
 from rpc_backbone.decorators import rpcStatusDecorator, MySQL_master, MySQL_slave
@@ -11,8 +11,8 @@ from picturedetector import util
 from dbglog import dbg
 import os.path
 
-class ModelBackend(Backend):
-    @rpcStatusDecorator('model.get', 'S:i')
+class TrainModelBackend(Backend):
+    @rpcStatusDecorator('train_model.get', 'S:i')
     @MySQL_slave
     def get(self, id):
         file_path = self.getPath(id)
@@ -20,38 +20,38 @@ class ModelBackend(Backend):
         return model
     #enddef
     
-    @rpcStatusDecorator('model.getString', 'S:i')
+    @rpcStatusDecorator('train_model.getString', 'S:i')
     @MySQL_slave
     def getString(self, id):
         file_path = self.getPath(id)
         file = open(file_path, 'w')
         if not file:
-            raise self.ProcessException("Nemuzu otevrit deploy soubor (" + file_path + ")!")
+            raise self.ProcessException("Nemuzu otevrit train model soubor (" + file_path + ")!")
         file_content = file.read()
         return file_content;
     #enddef
 
-    @rpcStatusDecorator('model.save', 'S:s')
+    @rpcStatusDecorator('train_model.save', 'S:s')
     @MySQL_master
     def save(self, file_content):
         file_path = self.getPath(id)
-        file = open(file_path, 'wb')
+        file = open(file_path, 'w')
         if not file:
-            raise self.ProcessException("Nemuzu vytvorit deploy soubor (" + file_path + ")!")
+            raise self.ProcessException("Nemuzu vytvorit train model soubor (" + file_path + ")!")
         file.write(file_content)
         file.close()
         
         return True
     #enddef
 
-    @rpcStatusDecorator('model.delete', 'S:i')
+    @rpcStatusDecorator('train_model.delete', 'S:i')
     @MySQL_master
     def delete(self, id):
         file_path = self.getPath(id)
         if os.path.isfile(file_path):
             os.remove(file_path)
         else:
-            dbg.log("Deploy soubor neexistuje (" + file_path +")", INFO=3)
+            dbg.log("Train model soubor neexistuje (" + file_path +")", INFO=3)
             return False
         #endif
         

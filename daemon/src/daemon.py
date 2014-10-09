@@ -344,6 +344,7 @@ class PicturedetectorDaemon(Daemon):
         # nacist obrazky z picture setu
         result = self.config.backend.proxy.picture.list(picture_set)
         pictures = result['data']
+        dbg.log(str(pictures), INFO=3)
 
         # prochazeni obrazku a ukladani do prislusnych souboru
         for picture in pictures:
@@ -372,6 +373,7 @@ class PicturedetectorDaemon(Daemon):
         return filename
     #enddef
 
+    #todo DELETE (NOT USED)
     def _generateSolverFile(self, filepath, neural_network_id):
         # Cteni konfigurace solveru z databaze
         result = self.config.backend.proxy.solver_config.get(neural_network_id)

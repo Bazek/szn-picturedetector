@@ -33,7 +33,7 @@ def readProtoLayerFile(filepath):
 def _readProtoFile(filepath, parser_object):
     file = open(filepath, "r")
     if not file:
-        raise Exception("Soubor s konfiguraci vrstev neuronove site neexistuje (" + filepath + ")!")
+        raise Exception("Soubor s konfiguraci neexistuje (" + filepath + ")!")
 
     text_format.Merge(str(file.read()), parser_object)
     file.close()

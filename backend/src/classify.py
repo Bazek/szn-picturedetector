@@ -56,11 +56,11 @@ class ClassifyBackend(Backend):
         network = server.globals.rpcObjects['neural_network'].get(neural_network_id, bypass_rpc_status_decorator=True)
         dbg.log("network %s", network, INFO=3) 
 
-        model_config_path = network['model_config_path']
+        model_config = network['model_config']
         pretrained_model_path = network['pretrained_model_path']
 
         mean_file_path = network['mean_file']
-        dbg.log("Path settings:\nmodel path %s\ntrained_path %s\nmean file %s", (model_config_path, pretrained_model_path, mean_file_path), DBG=3) 
+        dbg.log("Path settings:\nmodel path %s\ntrained_path %s\nmean file %s", (model_config, pretrained_model_path, mean_file_path), DBG=3) 
 
         # if we get only one image, convert it to array of one image object
         if not isinstance(images, list):
@@ -76,7 +76,7 @@ class ClassifyBackend(Backend):
         
         # create caffe classicifer
         net = caffe.Classifier(
-            model_config_path,
+            model_config,
             pretrained_model_path,
             mean=mean_file,
             channel_swap=(2,1,0),

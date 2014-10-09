@@ -37,15 +37,16 @@ class NeuralNetworkBackend(Backend):
                     integer id                      neural network id
                     integer model_id                model id
                     string description              description
-                    string pretrained_model_path    cesta k predtrenovanemu modelu
-                    string mean_file                cesta k mean file souboru pro klasifikaci
-                    string model_config_path        cesta k souboru s konfiguraci modelu
+                    string pretrained_model_path    soubor s predtrenovanym modelem
+                    string mean_file                soubor k mean file souboru pro klasifikaci
+                    string model_config             obsah souboru s konfiguraci modelu
+                    string solver_config            obsah souboru s konfiguraci pro uceni
                 }
             }
         """
 
         query = """
-            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file, model.model_config_path
+            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file, model.model_config
             FROM neural_network
             JOIN model ON neural_network.model_id = model.id
             WHERE neural_network.id = %s
@@ -55,6 +56,9 @@ class NeuralNetworkBackend(Backend):
         if not neural_network:
             raise Exception(404, "Neural network not found")
         #endif
+        
+        neural_network['model_config'] = server.globals.rpcObjects['model'].get(neural_network_id, bypass_rpc_status_decorator=True)
+        neural_network['solver_config'] = server.globals.rpcObjects['solver_config'].get(neural_network_id, bypass_rpc_status_decorator=True)
         return neural_network
     #enddef
 
@@ -75,15 +79,16 @@ class NeuralNetworkBackend(Backend):
                     integer id                      neural_network_id
                     integer model_id                model id
                     string description              description
-                    string pretrained_model_path    cesta k predtrenovanemu modelu
-                    string mean_file                cesta k mean file souboru pro klasifikaci
-                    string model_config_path        cesta k souboru s konfiguraci modelu
+                    string pretrained_model_path    soubor s predtrenovanym modelem
+                    string mean_file                soubor k mean file souboru pro klasifikaci
+                    string model_config             obsah souboru s konfiguraci modelu
+                    string solver_config            obsah souboru s konfiguraci pro uceni
                 }
             }
         """
 
         query = """
-            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file, model.model_config_path
+            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file, model.model_config
             FROM neural_network
             JOIN model ON neural_network.model_id = model.id
         """
@@ -104,8 +109,10 @@ class NeuralNetworkBackend(Backend):
         @param {
             model_id                    ID modelu z ktereho neuronova sit vychazi
             description                 Popisek
-            pretrained_model_path       cesta k predtrenovanemu modelu
-            string mean_file            cesta k mean file souboru pro klasifikaci
+            pretrained_model_path       soubor s predtrenovanym modelem
+            mean_file                   soubor k mean file souboru pro klasifikaci
+            model_config                obsah souboru s konfiguraci modelu
+            solver_config               obsah souboru s konfiguraci pro uceni
         }
 
         Returns:
@@ -117,11 +124,14 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            INSERT INTO neural_network (`model_id`, `description`, `pretrained_model_path`, `mean_file`)
-            VALUE (%(model_id)s, %(description)s, %(pretrained_model_path)s, %(mean_file)s)
+            INSERT INTO neural_network (`model_id`, `description`)
+            VALUE (%(model_id)s, %(description)s)
         """
         self.cursor.execute(query, param)
         neural_network_id = self.cursor.lastrowid
+        
+        neural_network['model_config'] = server.globals.rpcObjects['model'].save(neural_network_id, param['model_config'], bypass_rpc_status_decorator=True)
+        neural_network['solver_config'] = server.globals.rpcObjects['solver_config'].save(neural_network_id, param['solver_config'], bypass_rpc_status_decorator=True)
         return neural_network_id
     #enddef
 
@@ -165,6 +175,15 @@ class NeuralNetworkBackend(Backend):
             WHERE id = %(id)s
         """
         self.cursor.execute(query, params)
+        
+        if params['model_config']:
+            neural_network['model_config'] = server.globals.rpcObjects['model'].save(neural_network_id, params['model_config'], bypass_rpc_status_decorator=True)
+        #endif
+        
+        if params['solver_config']:
+            neural_network['solver_config'] = server.globals.rpcObjects['solver_config'].save(neural_network_id, params['solver_config'], bypass_rpc_status_decorator=True)
+        #endif
+        
         return True
     #enddef
 
@@ -197,6 +216,7 @@ class NeuralNetworkBackend(Backend):
             raise Exception(status, statusMessage)
         #endif
 
+        neural_network['solver_config'] = server.globals.rpcObjects['solver_config'].delete(neural_network_id, bypass_rpc_status_decorator=True)
         return True
     #enddef
 
