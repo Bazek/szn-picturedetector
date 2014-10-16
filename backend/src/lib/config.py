@@ -40,6 +40,8 @@ class CaffeConfig(object):
     """ Parse caffe section """
     def __init__(self, parser, section='caffe'):
         self.gpu_mode = parser.get(section, 'GpuMode', 1)
+        self.init_networks_on_start = parser.get(section, 'InitNetworksOnStart', 1)
+        
     #enddef
 #endclass
 

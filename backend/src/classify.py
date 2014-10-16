@@ -53,47 +53,18 @@ class ClassifyBackend(Backend):
                 }
             }
         """
-        dbg.log(">>> model_config", INFO=3)
-        model_config = server.globals.rpcObjects['model'].getPath(neural_network_id, bypass_rpc_status_decorator=True)
-        #TODO udelat nacitani predtrenovanych modelu (binarek)
-        #pretrained_model_path = server.globals.rpcObjects['pretrained_model_path'].get(neural_network_id, bypass_rpc_status_decorator=True)
-        #TODO delete
-        pretrained_model_path = '/www/picturedetector/caffe/models/imagenet-default/caffe_reference_imagenet_model'
         
-        # Vygenerovani cesty pro mean file soubor pro klasifikaci
-        mean_file_path = util.getMeanFilePath(neural_network_id)
-        dbg.log("Path settings:\nmodel path %s\ntrained_path %s\nmean file %s", (model_config, pretrained_model_path, mean_file_path), DBG=3) 
-        dbg.log(">>> mean_file:" + mean_file_path, INFO=3)
+        # Nacteni nebo vytvoreni klasifikatoru
+        if server.globals.neuralNetworks[neural_network_id]:
+            net = server.globals.neuralNetworks[neural_network_id]
+        else:
+            net = self.createClassifier(neural_network_id)
+        #endif
+
         # if we get only one image, convert it to array of one image object
         if not isinstance(images, list):
             images = [images]
-        
-        # if classifier meanfile path is set, read the mean file
-        
-        mean_file = None
-        #TODO Classify with generated npy file will raise exception: axes don't match array
-        if mean_file_path:
-            mean_file = numpy.load(mean_file_path)
-        #endif
-        
-        # create caffe classicifer
-        net = caffe.Classifier(
-            model_config,
-            pretrained_model_path,
-            mean=mean_file,
-            channel_swap=(2,1,0),
-            raw_scale=255,
-            gpu=self.config.caffe.gpu_mode
-        )
-        
-        net.set_phase_test()
-        
-        # set GPU/CPU mode
-        if self.config.caffe.gpu_mode:
-            net.set_mode_gpu()
-        else:
-            net.set_mode_cpu()
-            
+
         # array of loaded images
         input_images=[]
         for image in images:
@@ -139,5 +110,39 @@ class ClassifyBackend(Backend):
     def _load_image_from_binary(self, data, format = 'jpg', as_grey=False, return_metadate=False):
         blob_data = _imread.imread_from_blob(data, format)
         return convert(blob_data, 'float32')
+    #enddef
+    
+    @rpcStatusDecorator('classify.createClassifier', 'S:i')
+    def createClassifier(self, neural_network_id):
+        model_config = server.globals.rpcObjects['model'].getPath(neural_network_id, bypass_rpc_status_decorator=True)
+        #TODO udelat nacitani predtrenovanych modelu (binarek)
+        #pretrained_model_path = server.globals.rpcObjects['pretrained_model_path'].get(neural_network_id, bypass_rpc_status_decorator=True)
+        #TODO delete
+        pretrained_model_path = '/www/picturedetector/caffe/models/imagenet-default/caffe_reference_imagenet_model'
+
+        # Vygenerovani cesty pro mean file soubor pro klasifikaci
+        mean_file_path = util.getMeanFilePath(neural_network_id)
+
+        # if classifier meanfile path is set, read the mean file
+
+        mean_file = None
+        #TODO Classify with generated npy file will raise exception: axes don't match array
+        if mean_file_path:
+            mean_file = numpy.load(mean_file_path)
+        #endif
+        
+        # create caffe classicifer
+        net = caffe.Classifier(
+            model_config,
+            pretrained_model_path,
+            mean=mean_file,
+            channel_swap=(2,1,0),
+            raw_scale=255,
+            gpu=self.config.caffe.gpu_mode
+        )
+
+        net.set_phase_test()
+        return net
+    #enddef
             
 #endclass

@@ -37,8 +37,7 @@ class NeuralNetworkBackend(Backend):
                 struct data {
                     integer id                      neural network id
                     string description              description
-                    string pretrained_model_path    soubor s predtrenovanym modelem
-                    string mean_file                soubor k mean file souboru pro klasifikaci
+                    integer auto_init               priznak automaticke inicializace neuronove site
                     string model_config             obsah souboru s konfiguraci modelu
                     string solver_config            obsah souboru s konfiguraci pro uceni
                 }
@@ -46,7 +45,7 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            SELECT neural_network.id, neural_network.description
+            SELECT neural_network.id, neural_network.description, neural_network.auto_init
             FROM neural_network
             WHERE neural_network.id = %s
         """
@@ -77,6 +76,7 @@ class NeuralNetworkBackend(Backend):
                 array data {
                     integer id                      neural_network_id
                     string description              description
+                    integer auto_init               priznak automaticke inicializace neuronove site
                     string model_config             obsah souboru s konfiguraci modelu
                     string solver_config            obsah souboru s konfiguraci pro uceni
                 }
@@ -84,7 +84,7 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            SELECT neural_network.id, neural_network.description
+            SELECT neural_network.id, neural_network.description, neural_network.auto_init
             FROM neural_network
         """
         self.cursor.execute(query)
@@ -103,10 +103,10 @@ class NeuralNetworkBackend(Backend):
 
         @param {
             description                 Popisek
-            pretrained_model_path       soubor s predtrenovanym modelem
             model_config                obsah souboru s konfiguraci modelu
             solver_config               obsah souboru s konfiguraci pro uceni
             train_config                obsah souboru s konfiguraci pro uceni modelu
+            auto_init                   priznak automaticke inicializace neuronove site
         }
 
         Returns:
@@ -118,8 +118,8 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            INSERT INTO neural_network (`description`)
-            VALUE (%(description)s)
+            INSERT INTO neural_network (`description`, `auto_init`)
+            VALUE (%(description)s, %(auto_init)s)
         """
         self.cursor.execute(query, param)
         neural_network_id = self.cursor.lastrowid
@@ -143,10 +143,10 @@ class NeuralNetworkBackend(Backend):
 
         @neural_network_id  Id neuronove site
         @params {
-            model_id                    ID modelu z ktereho neuronova sit vychazi
             description                 Popisek
+            auto_init                   priznak automaticke inicializace neuronove site
             pretrained_model_path       cesta k predtrenovanemu modelu
-            string mean_file            cesta k mean file souboru pro klasifikaci
+            mean_file                   cesta k mean file souboru pro klasifikaci
         }
 
         Returns:
@@ -158,10 +158,8 @@ class NeuralNetworkBackend(Backend):
         """
 
         filterDict = {
-            "model_id":                 "model_id = %(model_id)s",
             "description":              "description = %(description)s",
-            "pretrained_model_path":    "pretrained_model_path = %(pretrained_model_path)s",
-            "mean_file":                "mean_file = %(mean_file)s",
+            "auto_init":                "auto_init = %(auto_init)s",
         }
         
         SET = self._getFilter(filterDict, params, "SET", ", ")

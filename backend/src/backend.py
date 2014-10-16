@@ -55,6 +55,10 @@ def init(cfg):
 
 def childInit():
     server.globals.mysql = MySqlProxy(server.globals.rawConfig, "mysql-master", "mysql-slave")
+    
+    # Inicializace neuronovych siti
+    server.globals.neuralNetworks = {}
+    initNeuralNetworks()
 #enddef
 
 
@@ -76,4 +80,20 @@ def logRotate():
 def head():
     return server.globals.rpcObjects['backend'].ping()
 #enddef
+
+def initNeuralNetworks():
+    if server.globals.config.caffe.init_networks_on_start:
+        neural_networks = server.globals.rpcObjects['neural_network'].list(bypass_rpc_status_decorator=True)
+        for neural_network in neural_networks:
+            if neural_network['auto_init']:
+                neural_network_id = neural_network['id']
+                classifier = server.globals.rpcObjects['classify'].createClassifier(neural_network_id)
+                if 'data' in classifier:
+                    server.globals.neuralNetworks[neural_network_id] = classifier['data']
+                #endif
+            #endif
+        #endfor
+    #endif
+#enddef
+
 
