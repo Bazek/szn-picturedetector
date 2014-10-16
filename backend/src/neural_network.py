@@ -6,6 +6,7 @@
 #
 
 from dbglog import dbg
+import metaserver.fastrpc as server
 
 from rpc_backbone.decorators import rpcStatusDecorator, MySQL_master, MySQL_slave
 from lib.backend import Backend
@@ -35,7 +36,6 @@ class NeuralNetworkBackend(Backend):
                 string statusMessage                Textovy popis stavu
                 struct data {
                     integer id                      neural network id
-                    integer model_id                model id
                     string description              description
                     string pretrained_model_path    soubor s predtrenovanym modelem
                     string mean_file                soubor k mean file souboru pro klasifikaci
@@ -46,9 +46,8 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file, model.model_config
+            SELECT neural_network.id, neural_network.description
             FROM neural_network
-            JOIN model ON neural_network.model_id = model.id
             WHERE neural_network.id = %s
         """
         self.cursor.execute(query, id)
@@ -56,9 +55,9 @@ class NeuralNetworkBackend(Backend):
         if not neural_network:
             raise Exception(404, "Neural network not found")
         #endif
-        
-        neural_network['model_config'] = server.globals.rpcObjects['model'].get(neural_network_id, bypass_rpc_status_decorator=True)
-        neural_network['solver_config'] = server.globals.rpcObjects['solver_config'].get(neural_network_id, bypass_rpc_status_decorator=True)
+
+        neural_network['model_config'] = server.globals.rpcObjects['model'].getString(id, bypass_rpc_status_decorator=True)
+        neural_network['solver_config'] = server.globals.rpcObjects['solver_config'].getString(id, bypass_rpc_status_decorator=True)
         return neural_network
     #enddef
 
@@ -77,10 +76,7 @@ class NeuralNetworkBackend(Backend):
                 string statusMessage                Textovy popis stavu
                 array data {
                     integer id                      neural_network_id
-                    integer model_id                model id
                     string description              description
-                    string pretrained_model_path    soubor s predtrenovanym modelem
-                    string mean_file                soubor k mean file souboru pro klasifikaci
                     string model_config             obsah souboru s konfiguraci modelu
                     string solver_config            obsah souboru s konfiguraci pro uceni
                 }
@@ -88,9 +84,8 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            SELECT neural_network.id, neural_network.model_id, neural_network.description, neural_network.pretrained_model_path, neural_network.mean_file, model.model_config
+            SELECT neural_network.id, neural_network.description
             FROM neural_network
-            JOIN model ON neural_network.model_id = model.id
         """
         self.cursor.execute(query)
         neural_networks = self.cursor.fetchall()
@@ -107,12 +102,11 @@ class NeuralNetworkBackend(Backend):
             neural_network.add(struct param)
 
         @param {
-            model_id                    ID modelu z ktereho neuronova sit vychazi
             description                 Popisek
             pretrained_model_path       soubor s predtrenovanym modelem
-            mean_file                   soubor k mean file souboru pro klasifikaci
             model_config                obsah souboru s konfiguraci modelu
             solver_config               obsah souboru s konfiguraci pro uceni
+            train_config                obsah souboru s konfiguraci pro uceni modelu
         }
 
         Returns:
@@ -124,14 +118,17 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            INSERT INTO neural_network (`model_id`, `description`)
-            VALUE (%(model_id)s, %(description)s)
+            INSERT INTO neural_network (`description`)
+            VALUE (%(description)s)
         """
         self.cursor.execute(query, param)
         neural_network_id = self.cursor.lastrowid
         
-        neural_network['model_config'] = server.globals.rpcObjects['model'].save(neural_network_id, param['model_config'], bypass_rpc_status_decorator=True)
-        neural_network['solver_config'] = server.globals.rpcObjects['solver_config'].save(neural_network_id, param['solver_config'], bypass_rpc_status_decorator=True)
+        #TODO opravit problem s predanim parametru jako text
+        dbg.log(str(param), INFO=3)
+        server.globals.rpcObjects['model'].save(neural_network_id, param['model_config'], bypass_rpc_status_decorator=True)
+        server.globals.rpcObjects['solver_config'].save(neural_network_id, param['solver_config'], bypass_rpc_status_decorator=True)
+        server.globals.rpcObjects['train_model'].save(neural_network_id, param['train_config'], bypass_rpc_status_decorator=True)
         return neural_network_id
     #enddef
 
@@ -177,11 +174,15 @@ class NeuralNetworkBackend(Backend):
         self.cursor.execute(query, params)
         
         if params['model_config']:
-            neural_network['model_config'] = server.globals.rpcObjects['model'].save(neural_network_id, params['model_config'], bypass_rpc_status_decorator=True)
+            server.globals.rpcObjects['model'].save(neural_network_id, params['model_config'], bypass_rpc_status_decorator=True)
         #endif
         
         if params['solver_config']:
-            neural_network['solver_config'] = server.globals.rpcObjects['solver_config'].save(neural_network_id, params['solver_config'], bypass_rpc_status_decorator=True)
+            server.globals.rpcObjects['solver_config'].save(neural_network_id, params['solver_config'], bypass_rpc_status_decorator=True)
+        #endif
+        
+        if params['train_config']:
+            server.globals.rpcObjects['train_model'].save(neural_network_id, params['train_config'], bypass_rpc_status_decorator=True)
         #endif
         
         return True

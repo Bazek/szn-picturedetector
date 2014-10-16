@@ -357,6 +357,44 @@ class PictureBackend(Backend):
 
         return pictures
     #enddef
+    
+    @rpcStatusDecorator('picture.listSimple', 'S:i,S:iS')
+    @MySQL_slave
+    def listSimple(self, picture_set_id, params={}):
+        """
+        Nevypisuje nazvy subsetu, ale jejich ID.
+        Protoze pri generovani obrazku pro uceni potrebujeme ciselne ID hodnoty (ne textove).
+        """
+
+        # Kontrola parametru
+        if "learning_set" in params and params["learning_set"] not in self.config.pictures.LEARNING_SETS:
+            raise Exception(402, "Unknown learning_set: %s" % params["learning_set"])
+        #endif
+        picture_set = server.globals.rpcObjects['picture_set'].get(picture_set_id, bypass_rpc_status_decorator=True)
+        params["picture_set_id"] = picture_set_id
+        if "learning_subset" in params and params["learning_subset"] not in picture_set["learning_subsets"]:
+            raise Exception(402, "Unknown learning_subset: %s" % params["learning_subset"])
+        #endif
+
+        filterDict = {
+            "picture_set_id":       "picture.picture_set_id = %(picture_set_id)s",
+            "learning_set":         "picture.learning_set = %(learning_set)s",
+            "learning_subset_id":   "picture.learning_subset_id = %(learning_subset_id)s",
+            "learning_subset":      "learning_subset.name = %(learning_subset)s",
+        }
+        WHERE = self._getFilter(filterDict, params)
+
+        query = """
+            SELECT picture.`id`, picture.`picture_set_id`, picture.`learning_set`, picture.`learning_subset_id`, picture.`hash`
+            FROM picture
+            """ + WHERE + """
+            ORDER BY id DESC
+        """
+        self.cursor.execute(query, params)
+        pictures = self.cursor.fetchall()
+
+        return pictures
+    #enddef
 
 #endclass
 

@@ -12,6 +12,7 @@ from rpc_backbone.decorators import rpcStatusDecorator
 import caffe
 import numpy
 from skimage.util.dtype import convert
+from picturedetector import util
 
 try:
     import imread as _imread
@@ -52,16 +53,17 @@ class ClassifyBackend(Backend):
                 }
             }
         """
+        dbg.log(">>> model_config", INFO=3)
+        model_config = server.globals.rpcObjects['model'].getPath(neural_network_id, bypass_rpc_status_decorator=True)
+        #TODO udelat nacitani predtrenovanych modelu (binarek)
+        #pretrained_model_path = server.globals.rpcObjects['pretrained_model_path'].get(neural_network_id, bypass_rpc_status_decorator=True)
+        #TODO delete
+        pretrained_model_path = '/www/picturedetector/caffe/models/imagenet-default/caffe_reference_imagenet_model'
         
-        network = server.globals.rpcObjects['neural_network'].get(neural_network_id, bypass_rpc_status_decorator=True)
-        dbg.log("network %s", network, INFO=3) 
-
-        model_config = network['model_config']
-        pretrained_model_path = network['pretrained_model_path']
-
-        mean_file_path = network['mean_file']
+        # Vygenerovani cesty pro mean file soubor pro klasifikaci
+        mean_file_path = util.getMeanFilePath(neural_network_id)
         dbg.log("Path settings:\nmodel path %s\ntrained_path %s\nmean file %s", (model_config, pretrained_model_path, mean_file_path), DBG=3) 
-
+        dbg.log(">>> mean_file:" + mean_file_path, INFO=3)
         # if we get only one image, convert it to array of one image object
         if not isinstance(images, list):
             images = [images]
@@ -95,7 +97,7 @@ class ClassifyBackend(Backend):
         # array of loaded images
         input_images=[]
         for image in images:
-            if image['data']:
+            if 'data' in image:
                 input_images.append(self._load_image_from_binary(image['data'].data))
             elif image['path']:
                 input_images.append(caffe.io.load_image(image['path']))

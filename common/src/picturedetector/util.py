@@ -11,6 +11,8 @@
 
 from caffe.proto import caffe_pb2
 from google.protobuf import text_format
+import os.path
+from dbglog import dbg
 
 # Konstanty pro rozliseni souboru pro uceni a validaci
 TRAIN = 'train'
@@ -19,6 +21,10 @@ VALIDATE = 'validate'
 # Konstanty, ktere urcuji nactene cesty ze souboru imagenet_train_val.prototxt
 SOURCE = 'source'
 MEAN_FILE = 'mean_file'    
+
+MEAN_FILE_PATH = '/www/picturedetector/caffe/neural_networks/meanfiles'
+MEAN_FILE_PREFIX = 'mean_file_'
+MEAN_FILE_EXTENSION = '.npy'
 
 def readProtoSolverFile(filepath):
     solver_config = caffe_pb2.SolverParameter()
@@ -87,4 +93,12 @@ def parseLayerPaths(proto):
     #endfor
 
     return results
+#enddef
+
+def getMeanFilePath(neural_network_id):
+    base = MEAN_FILE_PATH
+    prefix = MEAN_FILE_PREFIX
+    extension = MEAN_FILE_EXTENSION
+    
+    return os.path.join(base, prefix + str(neural_network_id) + extension)
 #enddef

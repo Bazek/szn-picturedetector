@@ -190,16 +190,22 @@ class PicturedetectorDaemon(Daemon):
         
         # Nacteni informaci o neuronove siti
         result = self.config.backend.proxy.neural_network.get(neural_network_id)
+        dbg.log(str(result), INFO=3)
         network = result['data']
         
         # Cteni konfigurace solveru z databaze
-        result = self.config.backend.proxy.solver_config.get(network['id'])
-        solver_config = result['data']
+        result = self.config.backend.proxy.solver_config.getPath(network['id'])
+        dbg.log(str(result), INFO=3)
+        solver_config_path = result['data']
         
-        solver_config_path = self._getSolverPath(network['id'])
+        #TODO Stare pouziti. Da se jeste vyuzit?
+        #solver_config_path = self._getSolverPath(network['id'])
+        
+        solver_config = util.readProtoSolverFile(solver_config_path)
+        dbg.log("CONFIG " + str(solver_config), INFO=3)
         
         # Parsovani cest ze souboru imagenet_train_val.prototxt
-        layer_config = util.readProtoLayerFile(solver_config['net'])
+        layer_config = util.readProtoLayerFile(solver_config.net)
         layer_paths = util.parseLayerPaths(layer_config)
         dbg.log("Loaded paths: " + str(layer_paths), INFO=3)
         # Ziskat picture set a vygenerovat soubory s cestami k obrazkum (validacni a ucici)
@@ -235,7 +241,7 @@ class PicturedetectorDaemon(Daemon):
         create_args.append(picture_files[util.VALIDATE])
         create_args.append(layer_paths[util.TRAIN][util.SOURCE])
         create_args.append(layer_paths[util.VALIDATE][util.SOURCE])
-        
+        dbg.log("create_args " + str(create_args), INFO=3)
         # Vytvorit imagenet pomoci souboru s obrazky a zadanych cest kde se maji vytvorit
         subprocess.call(create_args)
         
@@ -244,13 +250,17 @@ class PicturedetectorDaemon(Daemon):
         create_mean_file_args.append(create_mean_file_script)
         create_mean_file_args.append(layer_paths[util.TRAIN][util.SOURCE])
         create_mean_file_args.append(layer_paths[util.TRAIN][util.MEAN_FILE])
-
+        dbg.log("create_mean_file_args " + str(create_mean_file_args), INFO=3)
+        
         # Vytvorit mean file pro trenovaci obrazky
         subprocess.call(create_mean_file_args)
+
+        # Vygenerovani cesty pro mean file soubor pro klasifikaci
+        mean_file_path = util.getMeanFilePath(neural_network_id)
         
         # Vytvoreni binarniho souboru, ktery dokaze nacist numpy.
         # Tento soubor je potreba pro klasifikaci obrazku, vyse vytvoreny mean file se pouziva pro trenovani site.
-        self._createClassifyMeanFile(layer_paths[util.TRAIN][util.MEAN_FILE], network['mean_file'])
+        self._createClassifyMeanFile(layer_paths[util.TRAIN][util.MEAN_FILE], mean_file_path)
         
         # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni mean souboru obrazku pro validacni obrazky
         create_mean_file_args = []
@@ -262,7 +272,7 @@ class PicturedetectorDaemon(Daemon):
         subprocess.call(create_mean_file_args)
         
         # Vytvoreni solver souboru pro uceni
-        self._generateSolverFile(solver_config_path, network['id'])
+        #self._generateSolverFile(solver_config_path, network['id'])
         
         # Vytvoreni argumentu pro spusteni skriptu pro uceni neuronove site. Prvni parametr je cesta ke skriptu
         learn_args = []
@@ -280,7 +290,7 @@ class PicturedetectorDaemon(Daemon):
             saved_file_path = os.path.join(save_file_path, solver_config['snapshot_prefix'] + self.SAVE_FILE_PREFIX + str(startIteration) + self.SOLVER_EXT)
             learn_args.append('-snapshot=' + saved_file_path)
         #endif
-        
+        dbg.log(str(learn_args), INFO=3)
         p = subprocess.Popen(learn_args, stderr=learn_log, stdout=learn_log)
         if p:
             return p.pid
@@ -342,7 +352,7 @@ class PicturedetectorDaemon(Daemon):
         }
         
         # nacist obrazky z picture setu
-        result = self.config.backend.proxy.picture.list(picture_set)
+        result = self.config.backend.proxy.picture.listSimple(picture_set)
         pictures = result['data']
         dbg.log(str(pictures), INFO=3)
 
@@ -356,7 +366,8 @@ class PicturedetectorDaemon(Daemon):
                 continue
             #endif
 
-            line = picture['hash'] + ' ' + str(picture['learning_subset']) + "\n"
+            # nutna dekrementace ID hodnot (v DB jsou hodnoty od 1), ale caffe pocita skupiny od 0
+            line = picture['hash'] + ' ' + str(picture['learning_subset_id'] - 1) + "\n"
             file.write(line)
         
         # uzavreni souboru

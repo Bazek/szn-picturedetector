@@ -20,7 +20,7 @@ class Config(BaseConfig):
         self.caffe = CaffeConfig(self.parser)
         self.solver = SolverConfig(self.parser)
         self.deploy = DeployConfig(self.parser)
-        self.train_val = TrainModelConfig(self.parser)
+        self.trainmodel = TrainModelConfig(self.parser)
     #enddef
 #endclass
 
