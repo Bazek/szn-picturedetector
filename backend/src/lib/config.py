@@ -18,9 +18,7 @@ class Config(BaseConfig):
         self.classify = ClassifyConfig(self.parser)
         self.pictures = PicturesConfig(self.parser)
         self.caffe = CaffeConfig(self.parser)
-        self.solver = SolverConfig(self.parser)
-        self.deploy = DeployConfig(self.parser)
-        self.trainmodel = TrainModelConfig(self.parser)
+        self.neural_networks = NeuralNetworkConfig(self.parser)
     #enddef
 #endclass
 
@@ -40,8 +38,8 @@ class CaffeConfig(object):
     """ Parse caffe section """
     def __init__(self, parser, section='caffe'):
         self.gpu_mode = parser.get(section, 'GpuMode', 1)
-        self.init_networks_on_start = parser.get(section, 'InitNetworksOnStart', 1)
-        
+        self.init_networks_on_start = parser.get(section, 'InitNetworksOnStart', 0)
+        self.keep_networks = parser.get(section, 'KeepNetworks', 1)
     #enddef
 #endclass
 
@@ -52,29 +50,15 @@ class ClassifyConfig(object):
     #enddef
 #endclass
 
-class SolverConfig(object):
+class NeuralNetworkConfig(object):
     """ Parse solver section """
-    def __init__(self, parser, section='solver'):
-        self.base_path = parser.get(section, 'BasePath', '/www/picturedetector/caffe/solvers')
-        self.file_prefix = parser.get(section, 'FilePrefix', 'solver_config_')
-        self.file_extension = parser.get(section, 'FileExtension', '.prototxt')
+    def __init__(self, parser, section='neural-networks'):
+        self.base_path = parser.get(section, 'BasePath', '/www/picturedetector/backend/data/neural-networks')
+        self.solver_file = parser.get(section, 'SolverFile', 'solver.prototxt')
+        self.deploy_file = parser.get(section, 'DeployFile', 'deploy.prototxt')
+        self.trainmodel_file = parser.get(section, 'TrainmodelFile', 'trainmodel.prototxt')
+        self.mean_file = parser.get(section, 'MeanFile', 'classifierMeanFile.npy')
     #enddef
 #endclass
 
-class DeployConfig(object):
-    """ Parse deploy section """
-    def __init__(self, parser, section='deploy'):
-        self.base_path = parser.get(section, 'BasePath', '/www/picturedetector/caffe/deploys')
-        self.file_prefix = parser.get(section, 'FilePrefix', 'deploy_')
-        self.file_extension = parser.get(section, 'FileExtension', '.prototxt')
-    #enddef
-#endclass
-
-class TrainModelConfig(object):
-    """ Parse trainmodel section """
-    def __init__(self, parser, section='trainmodel'):
-        self.base_path = parser.get(section, 'BasePath', '/www/picturedetector/caffe/trainmodels')
-        self.file_prefix = parser.get(section, 'FilePrefix', 'trainmodel_')
-        self.file_extension = parser.get(section, 'FileExtension', '.prototxt')
-    #enddef
 #endclass

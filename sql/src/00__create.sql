@@ -10,8 +10,10 @@ CREATE TABLE `neural_network` (
   `description` varchar(255) NOT NULL,
   `pretrained_model_path` varchar(255) NOT NULL,
   `auto_init` TINYINT(1) NOT NULL DEFAULT '0',
+  `keep_saved` TINYINT(1) NOT NULL DEFAULT '0',
+  `gpu` TINYINT(1) NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Neural networks with configuration';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci COMMENT='Neural networks';
 
 CREATE TABLE `picture_set` (
   `id` INT NOT NULL AUTO_INCREMENT,

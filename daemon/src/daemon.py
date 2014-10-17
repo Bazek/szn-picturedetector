@@ -49,12 +49,24 @@ class PicturedetectorDaemonConfig(DaemonConfig):
             self.solver_file_prefix = parser.get(section, "SolverFilePrefix")           
         #enddef
     #endclass
+    
+    class NeuralNetworkConfig(object):
+        """ Parse solver section """
+        def __init__(self, parser, section='neural-networks'):
+            self.base_path = parser.get(section, 'BasePath', '/www/picturedetector/backend/data/neural-networks')
+            self.solver_file = parser.get(section, 'SolverFile', 'solver.prototxt')
+#            self.deploy_file = parser.get(section, 'DeployFile', 'deploy.prototxt')
+#            self.trainmodel_file = parser.get(section, 'TrainmodelFile', 'trainmodel.prototxt')
+            self.mean_file = parser.get(section, 'MeanFile', 'classifierMeanFile.npy')
+        #enddef
+    #endclass
 
 
     def reload(self):
         super(PicturedetectorDaemonConfig, self).reload()
         self.backend = ConfigBox(self.parser, "backend")
         self.caffe = self.CaffeConfig(self.parser, "caffe")
+        self.neural_networks = self.NeuralNetworkConfig(self.parser, "neural-networks")
     #enddef
 
 #endclass
@@ -188,26 +200,15 @@ class PicturedetectorDaemon(Daemon):
         create_mean_file_script = self.config.caffe.create_mean_file_script
         save_file_path = self.config.caffe.save_file_path
         
-        # Nacteni informaci o neuronove siti
-        result = self.config.backend.proxy.neural_network.get(neural_network_id)
-        dbg.log(str(result), INFO=3)
-        network = result['data']
-        
         # Cteni konfigurace solveru z databaze
-        result = self.config.backend.proxy.solver_config.getPath(network['id'])
-        dbg.log(str(result), INFO=3)
-        solver_config_path = result['data']
-        
-        #TODO Stare pouziti. Da se jeste vyuzit?
-        #solver_config_path = self._getSolverPath(network['id'])
-        
+        solver_config_path = os.path.join(self.config.neural_networks.base_path, str(neural_network_id), self.config.neural_networks.solver_file)
+
         solver_config = util.readProtoSolverFile(solver_config_path)
-        dbg.log("CONFIG " + str(solver_config), INFO=3)
         
         # Parsovani cest ze souboru imagenet_train_val.prototxt
         layer_config = util.readProtoLayerFile(solver_config.net)
         layer_paths = util.parseLayerPaths(layer_config)
-        dbg.log("Loaded paths: " + str(layer_paths), INFO=3)
+
         # Ziskat picture set a vygenerovat soubory s cestami k obrazkum (validacni a ucici)
         picture_files = self._createFilesWithImages(picture_set)
         
@@ -221,7 +222,7 @@ class PicturedetectorDaemon(Daemon):
         #endif
         
         # Otevreni souboru pro zapis 
-        learn_log_path = self._getLearnLogPath(network['id'])
+        learn_log_path = self._getLearnLogPath(neural_network_id)
         if startIteration == 0:
             file_mode = 'w'
         else:
@@ -256,7 +257,7 @@ class PicturedetectorDaemon(Daemon):
         subprocess.call(create_mean_file_args)
 
         # Vygenerovani cesty pro mean file soubor pro klasifikaci
-        mean_file_path = util.getMeanFilePath(neural_network_id)
+        mean_file_path = os.path.join(self.config.neural_networks.base_path, str(neural_network_id), self.config.neural_networks.mean_file)
         
         # Vytvoreni binarniho souboru, ktery dokaze nacist numpy.
         # Tento soubor je potreba pro klasifikaci obrazku, vyse vytvoreny mean file se pouziva pro trenovani site.
@@ -525,12 +526,7 @@ class PicturedetectorDaemon(Daemon):
         log_path = os.path.join(self.config.caffe.learn_output_path, self.config.caffe.learn_outout_prefix + str(neural_network_id) + self.LOG_FILE_EXT)
         return log_path
     #enddef
-    
-    def _getSolverPath(self, neural_network_id):
-        solver_path = os.path.join(self.config.caffe.solver_file_path, self.config.caffe.solver_file_prefix + str(neural_network_id) + self.PROTOTXT_FILE_EXT)
-        return solver_path
-    #enddef
-    
+
     def _createClassifyMeanFile(self, source_meanfile, target_meanfile):
         # cilovy meanfile pro klasifikaci nebyl zadan, nebudeme ho vytvaret
         if not target_meanfile:

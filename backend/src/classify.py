@@ -55,10 +55,10 @@ class ClassifyBackend(Backend):
         """
         
         # Nacteni nebo vytvoreni klasifikatoru
-        if server.globals.neuralNetworks[neural_network_id]:
+        if neural_network_id in server.globals.neuralNetworks:
             net = server.globals.neuralNetworks[neural_network_id]
         else:
-            net = self.createClassifier(neural_network_id)
+            net = self.createClassifier(neural_network_id, bypass_rpc_status_decorator=True)
         #endif
 
         # if we get only one image, convert it to array of one image object
@@ -71,6 +71,7 @@ class ClassifyBackend(Backend):
             if 'data' in image:
                 input_images.append(self._load_image_from_binary(image['data'].data))
             elif image['path']:
+                open(image['path'], 'r')
                 input_images.append(caffe.io.load_image(image['path']))
             #endif
 
@@ -111,26 +112,32 @@ class ClassifyBackend(Backend):
         blob_data = _imread.imread_from_blob(data, format)
         return convert(blob_data, 'float32')
     #enddef
-    
+
     @rpcStatusDecorator('classify.createClassifier', 'S:i')
     def createClassifier(self, neural_network_id):
-        model_config = server.globals.rpcObjects['model'].getPath(neural_network_id, bypass_rpc_status_decorator=True)
+        model_config = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'model', bypass_rpc_status_decorator=True)
         #TODO udelat nacitani predtrenovanych modelu (binarek)
         #pretrained_model_path = server.globals.rpcObjects['pretrained_model_path'].get(neural_network_id, bypass_rpc_status_decorator=True)
         #TODO delete
-        pretrained_model_path = '/www/picturedetector/caffe/models/imagenet-default/caffe_reference_imagenet_model'
-
+        #pretrained_model_path = '/www/picturedetector/caffe/models/imagenet-default/caffe_reference_imagenet_model'
+        pretrained_model_path = '/www/picturedetector/caffe/gen/caffe_imagenet_train_default_iter_8000.caffemodel'
         # Vygenerovani cesty pro mean file soubor pro klasifikaci
-        mean_file_path = util.getMeanFilePath(neural_network_id)
+        mean_file_path = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'mean_file', bypass_rpc_status_decorator=True)
 
         # if classifier meanfile path is set, read the mean file
-
         mean_file = None
         #TODO Classify with generated npy file will raise exception: axes don't match array
         if mean_file_path:
             mean_file = numpy.load(mean_file_path)
         #endif
         
+        neural_network = server.globals.rpcObjects['neural_network'].get(neural_network_id, bypass_rpc_status_decorator=True)
+        if neural_network['gpu'] == None:
+            gpu_mode = self.config.caffe.gpu_mode
+        else:
+            gpu_mode = neural_network['gpu']
+        #endif
+        dbg.log("GPU MODE: " + str(gpu_mode), INFO=3)
         # create caffe classicifer
         net = caffe.Classifier(
             model_config,
@@ -138,10 +145,18 @@ class ClassifyBackend(Backend):
             mean=mean_file,
             channel_swap=(2,1,0),
             raw_scale=255,
-            gpu=self.config.caffe.gpu_mode
+            gpu=gpu_mode
         )
 
         net.set_phase_test()
+        
+        if server.globals.config.caffe.init_networks_on_start and not neural_network_id in server.globals.neuralNetworks:
+            
+            if neural_network['keep_saved']:
+                server.globals.neuralNetworks[neural_network_id] = net
+            #endif
+        #endif
+        dbg.log(str(net), INFO=3)
         return net
     #enddef
             

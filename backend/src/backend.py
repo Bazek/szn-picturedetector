@@ -36,10 +36,7 @@ def init(cfg):
         'picture_set': PictureSetBackend(server),
         'picture': PictureBackend(server),
         'classify': ClassifyBackend(server),
-        'model': ModelBackend(server),
-        'solver_config': SolverConfigBackend(server),
         'learning_queue': LearningQueueBackend(server),
-        'train_model': TrainModelBackend(server),
     }
     # Monitorovaci metoda
     server.registerHEADMethod(head)

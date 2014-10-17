@@ -12,7 +12,7 @@ from rpc_backbone.decorators import rpcStatusDecorator, MySQL_master, MySQL_slav
 from lib.backend import Backend
 
 import caffe
-
+import os.path
 
 class NeuralNetworkBackend(Backend):
     """
@@ -37,7 +37,9 @@ class NeuralNetworkBackend(Backend):
                 struct data {
                     integer id                      neural network id
                     string description              description
-                    integer auto_init               priznak automaticke inicializace neuronove site
+                    boolean auto_init               priznak automaticke inicializace neuronove site
+                    boolean keep_saved              priznak ulozeni neuronove site pri klasifikaci
+                    boolean gpu                     priznak jestli neuronova sit, muze vyuzivat gpu
                     string model_config             obsah souboru s konfiguraci modelu
                     string solver_config            obsah souboru s konfiguraci pro uceni
                 }
@@ -45,7 +47,7 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            SELECT neural_network.id, neural_network.description, neural_network.auto_init
+            SELECT neural_network.id, neural_network.description, neural_network.auto_init, neural_network.keep_saved, neural_network.gpu
             FROM neural_network
             WHERE neural_network.id = %s
         """
@@ -55,8 +57,8 @@ class NeuralNetworkBackend(Backend):
             raise Exception(404, "Neural network not found")
         #endif
 
-        neural_network['model_config'] = server.globals.rpcObjects['model'].getString(id, bypass_rpc_status_decorator=True)
-        neural_network['solver_config'] = server.globals.rpcObjects['solver_config'].getString(id, bypass_rpc_status_decorator=True)
+        neural_network['model_config'] = server.globals.rpcObjects['neural_network'].getFileContent(id, 'model', bypass_rpc_status_decorator=True)
+        neural_network['solver_config'] = server.globals.rpcObjects['neural_network'].getFileContent(id, 'solver', bypass_rpc_status_decorator=True)
         return neural_network
     #enddef
 
@@ -76,7 +78,9 @@ class NeuralNetworkBackend(Backend):
                 array data {
                     integer id                      neural_network_id
                     string description              description
-                    integer auto_init               priznak automaticke inicializace neuronove site
+                    boolean auto_init               priznak automaticke inicializace neuronove site
+                    boolean keep_saved              priznak ulozeni neuronove site pri klasifikaci
+                    boolean gpu                     priznak jestli neuronova sit, muze vyuzivat gpu
                     string model_config             obsah souboru s konfiguraci modelu
                     string solver_config            obsah souboru s konfiguraci pro uceni
                 }
@@ -84,7 +88,7 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            SELECT neural_network.id, neural_network.description, neural_network.auto_init
+            SELECT neural_network.id, neural_network.description, neural_network.auto_init, neural_network.keep_saved, neural_network.gpu
             FROM neural_network
         """
         self.cursor.execute(query)
@@ -107,6 +111,8 @@ class NeuralNetworkBackend(Backend):
             solver_config               obsah souboru s konfiguraci pro uceni
             train_config                obsah souboru s konfiguraci pro uceni modelu
             auto_init                   priznak automaticke inicializace neuronove site
+            keep_saved                  priznak ulozeni neuronove site pri klasifikaci
+            gpu                         priznak jestli neuronova sit, muze vyuzivat gpu
         }
 
         Returns:
@@ -118,17 +124,17 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            INSERT INTO neural_network (`description`, `auto_init`)
-            VALUE (%(description)s, %(auto_init)s)
+            INSERT INTO neural_network (`description`, `auto_init`, `keep_saved`, `gpu`)
+            VALUE (%(description)s, %(auto_init)s, %(keep_saved)s, %(gpu)s)
         """
         self.cursor.execute(query, param)
         neural_network_id = self.cursor.lastrowid
         
         #TODO opravit problem s predanim parametru jako text
         dbg.log(str(param), INFO=3)
-        server.globals.rpcObjects['model'].save(neural_network_id, param['model_config'], bypass_rpc_status_decorator=True)
-        server.globals.rpcObjects['solver_config'].save(neural_network_id, param['solver_config'], bypass_rpc_status_decorator=True)
-        server.globals.rpcObjects['train_model'].save(neural_network_id, param['train_config'], bypass_rpc_status_decorator=True)
+        server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'model', param['model_config'], bypass_rpc_status_decorator=True)
+        server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'solver', param['solver_config'], bypass_rpc_status_decorator=True)
+        server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'trainmodel', param['train_config'], bypass_rpc_status_decorator=True)
         return neural_network_id
     #enddef
 
@@ -145,6 +151,8 @@ class NeuralNetworkBackend(Backend):
         @params {
             description                 Popisek
             auto_init                   priznak automaticke inicializace neuronove site
+            keep_saved                  priznak ulozeni neuronove site pri klasifikaci
+            gpu                         priznak jestli neuronova sit, muze vyuzivat gpu
             pretrained_model_path       cesta k predtrenovanemu modelu
             mean_file                   cesta k mean file souboru pro klasifikaci
         }
@@ -160,7 +168,24 @@ class NeuralNetworkBackend(Backend):
         filterDict = {
             "description":              "description = %(description)s",
             "auto_init":                "auto_init = %(auto_init)s",
+            "keep_saved":               "keep_saved = %(keep_saved)s",
+            "gpu":                      "gpu = %(auto_init)s",
         }
+
+        if params['model_config']:
+            server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'model', params['model_config'], bypass_rpc_status_decorator=True)
+            del params['model_config']
+        #endif
+        
+        if params['solver_config']:
+            server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'solver', params['solver_config'], bypass_rpc_status_decorator=True)
+            del params['solver_config']
+        #endif
+        
+        if params['train_config']:
+            server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'trainmodel', params['train_config'], bypass_rpc_status_decorator=True)
+            del params['train_config']
+        #endif
         
         SET = self._getFilter(filterDict, params, "SET", ", ")
         params["id"] = neural_network_id
@@ -170,19 +195,7 @@ class NeuralNetworkBackend(Backend):
             WHERE id = %(id)s
         """
         self.cursor.execute(query, params)
-        
-        if params['model_config']:
-            server.globals.rpcObjects['model'].save(neural_network_id, params['model_config'], bypass_rpc_status_decorator=True)
-        #endif
-        
-        if params['solver_config']:
-            server.globals.rpcObjects['solver_config'].save(neural_network_id, params['solver_config'], bypass_rpc_status_decorator=True)
-        #endif
-        
-        if params['train_config']:
-            server.globals.rpcObjects['train_model'].save(neural_network_id, params['train_config'], bypass_rpc_status_decorator=True)
-        #endif
-        
+                
         return True
     #enddef
 
@@ -218,6 +231,78 @@ class NeuralNetworkBackend(Backend):
         neural_network['solver_config'] = server.globals.rpcObjects['solver_config'].delete(neural_network_id, bypass_rpc_status_decorator=True)
         return True
     #enddef
+    
+    @rpcStatusDecorator('neural_network.getPath', 'S:is')
+    def getPath(self, neural_network_id, file_type):
+        """
+        Vrati cestu k souboru neuronove site.
+        Cesta je vygenerovana dle ID neuronove site a dle typu souboru
 
+        Signature:
+            neural_network.getPath(int neural_network_id, string file_type)
+
+        @neural_network_id           Id Neuronove site
+        @file_type                   Typ souboru
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                string data             Cesta k souboru
+            }
+        """
+
+        base_path = self.config.neural_networks.base_path
+        
+        if file_type == 'solver':
+            filename = self.config.neural_networks.solver_file
+        elif file_type == 'model':
+            filename = self.config.neural_networks.deploy_file
+        elif file_type == 'trainmodel':
+            filename = self.config.neural_networks.trainmodel_file
+        elif file_type == 'mean_file':
+            filename = self.config.neural_networks.mean_file
+        else:
+            raise Exception(500, "Unknown file type (" + file_type + ")")
+        #endif
+        
+        path = os.path.join(base_path, str(neural_network_id), filename)
+        return path
+    #enddef
+
+    @rpcStatusDecorator('neural_network.getFileContent', 'S:i')
+    def getFileContent(self, id, file_type):
+        file_path = server.globals.rpcObjects['neural_network'].getPath(id, file_type, bypass_rpc_status_decorator=True)
+        file = open(file_path, 'r')
+        if not file:
+            raise self.ProcessException("Nemuzu otevrit " + file_type + " soubor (" + file_path + ")!")
+        file_content = file.read()
+        return file_content;
+    #enddef
+
+    @rpcStatusDecorator('neural_network.saveFile', 'S:s')
+    def saveFile(self, id, file_type, file_content):
+        file_path = server.globals.rpcObjects['neural_network'].getPath(id, file_type, bypass_rpc_status_decorator=True)
+        file = open(file_path, 'w')
+        if not file:
+            raise self.ProcessException("Nemuzu vytvorit " + file_type + " soubor (" + file_path + ")!")
+        file.write(file_content)
+        file.close()
+        
+        return True
+    #enddef
+
+    @rpcStatusDecorator('neural_network.deleteFile', 'S:i')
+    def deleteFile(self, id, file_type):
+        file_path = server.globals.rpcObjects['neural_network'].getPath(id, file_type, bypass_rpc_status_decorator=True)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+        else:
+            dbg.log("Soubor " + file_type + " neexistuje (" + file_path +")", INFO=3)
+            return False
+        #endif
+        
+        return True
+    #enddef
 #endclass
 
