@@ -19,6 +19,7 @@ class Config(BaseConfig):
         self.pictures = PicturesConfig(self.parser)
         self.caffe = CaffeConfig(self.parser)
         self.neural_networks = NeuralNetworkConfig(self.parser)
+        self.test = TestConfig(self.parser)
     #enddef
 #endclass
 
@@ -40,6 +41,8 @@ class CaffeConfig(object):
         self.gpu_mode = parser.get(section, 'GpuMode', 1)
         self.init_networks_on_start = parser.get(section, 'InitNetworksOnStart', 0)
         self.keep_networks = parser.get(section, 'KeepNetworks', 1)
+        self.caffe_snapshot_const = parser.get(section, 'CaffeSnapshotConst', '')
+        self.caffe_snapshot_ext = parser.get(section, 'CaffeSnapshotExt', '.caffemodel')
     #enddef
 #endclass
 
@@ -51,13 +54,22 @@ class ClassifyConfig(object):
 #endclass
 
 class NeuralNetworkConfig(object):
-    """ Parse solver section """
+    """ Parse neural networks section """
     def __init__(self, parser, section='neural-networks'):
         self.base_path = parser.get(section, 'BasePath', '/www/picturedetector/backend/data/neural-networks')
         self.solver_file = parser.get(section, 'SolverFile', 'solver.prototxt')
         self.deploy_file = parser.get(section, 'DeployFile', 'deploy.prototxt')
         self.trainmodel_file = parser.get(section, 'TrainmodelFile', 'trainmodel.prototxt')
-        self.mean_file = parser.get(section, 'MeanFile', 'classifierMeanFile.npy')
+        self.mean_file = parser.get(section, 'MeanFile', 'meanfile.npy')
+        self.snapshots_folder = parser.get(section, 'SnapshotsFolder', 'snapshots')
+        self.snapshots_name = parser.get(section, 'SnapshotsName', 'snapshot')
+    #enddef
+#endclass
+
+class TestConfig(object):
+    """ Parse test section """
+    def __init__(self, parser, section='test'):
+        self.max_images = parser.get(section, 'MaxImages', 50)
     #enddef
 #endclass
 

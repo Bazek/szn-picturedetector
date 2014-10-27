@@ -166,8 +166,8 @@ class PicturedetectorDaemon(Daemon):
         return True
     #enddef
     
-    def _postUsr1(self, signum, frame):
-        # Dostali jsme signal SIGUSR1, zastavime ucici proces
+    def _postAbrt(self, signum, frame):
+        # Dostali jsme signal SIGABRT, zastavime ucici proces
         self.__stopLearningProcess()
     #enddef
 
@@ -216,10 +216,6 @@ class PicturedetectorDaemon(Daemon):
         if os.path.exists(layer_paths[util.TRAIN][util.SOURCE]):
             shutil.rmtree(layer_paths[util.TRAIN][util.SOURCE])
         #endif
-            
-        if os.path.exists(layer_paths[util.VALIDATE][util.SOURCE]):
-            shutil.rmtree(layer_paths[util.VALIDATE][util.SOURCE])
-        #endif
         
         # Otevreni souboru pro zapis 
         learn_log_path = self._getLearnLogPath(neural_network_id)
@@ -246,32 +242,6 @@ class PicturedetectorDaemon(Daemon):
         # Vytvorit imagenet pomoci souboru s obrazky a zadanych cest kde se maji vytvorit
         subprocess.call(create_args)
         
-        # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni mean souboru obrazku pro trenovaci obrazky
-        create_mean_file_args = []
-        create_mean_file_args.append(create_mean_file_script)
-        create_mean_file_args.append(layer_paths[util.TRAIN][util.SOURCE])
-        create_mean_file_args.append(layer_paths[util.TRAIN][util.MEAN_FILE])
-        dbg.log("create_mean_file_args " + str(create_mean_file_args), INFO=3)
-        
-        # Vytvorit mean file pro trenovaci obrazky
-        subprocess.call(create_mean_file_args)
-
-        # Vygenerovani cesty pro mean file soubor pro klasifikaci
-        mean_file_path = os.path.join(self.config.neural_networks.base_path, str(neural_network_id), self.config.neural_networks.mean_file)
-        
-        # Vytvoreni binarniho souboru, ktery dokaze nacist numpy.
-        # Tento soubor je potreba pro klasifikaci obrazku, vyse vytvoreny mean file se pouziva pro trenovani site.
-        self._createClassifyMeanFile(layer_paths[util.TRAIN][util.MEAN_FILE], mean_file_path)
-        
-        # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni mean souboru obrazku pro validacni obrazky
-        create_mean_file_args = []
-        create_mean_file_args.append(create_mean_file_script)
-        create_mean_file_args.append(layer_paths[util.VALIDATE][util.SOURCE])
-        create_mean_file_args.append(layer_paths[util.VALIDATE][util.MEAN_FILE])
-        
-        # Vytvorit mean file pro validacni obrazky
-        subprocess.call(create_mean_file_args)
-        
         # Vytvoreni solver souboru pro uceni
         #self._generateSolverFile(solver_config_path, network['id'])
         
@@ -282,13 +252,13 @@ class PicturedetectorDaemon(Daemon):
         learn_args.append('-solver=' + solver_config_path)
         
         if startIteration:
-            if not solver_config['snapshot_prefix']:
-                raise self.ProcessException("Nepodarilo se precist prefix nazvu souboru s ulozenym ucenim (" + solver_config['snapshot_prefix'] + ")!")
+            if not solver_config.snapshot_prefix:
+                raise self.ProcessException("Nepodarilo se precist prefix nazvu souboru s ulozenym ucenim (" + solver_config.snapshot_prefix + ")!")
             #endif
 
-            dbg.log("Prefix souboru s ulozenym ucenim: " + solver_config['snapshot_prefix'], INFO=3)
+            dbg.log("Prefix souboru s ulozenym ucenim: " + solver_config.snapshot_prefix, INFO=3)
             
-            saved_file_path = os.path.join(save_file_path, solver_config['snapshot_prefix'] + self.SAVE_FILE_PREFIX + str(startIteration) + self.SOLVER_EXT)
+            saved_file_path = os.path.join(save_file_path, solver_config.snapshot_prefix + self.SAVE_FILE_PREFIX + str(startIteration) + self.SOLVER_EXT)
             learn_args.append('-snapshot=' + saved_file_path)
         #endif
         dbg.log(str(learn_args), INFO=3)
@@ -308,14 +278,12 @@ class PicturedetectorDaemon(Daemon):
         queue_info = self.__getNextNeuralNetwork()
 
         if queue_info:
-#            try:
-            self.__startLearningProcess(queue_info)
-#            except Exception, e:
-#                dbg.log('Exception occured during starting learning process')
-#                self.__stopLearningProcess()
-#                raise e
-            #TODO delete
-            dbg.log(str(self._learningStatus(queue_info['neural_network_id'])), INFO=3)
+            try:
+                self.__startLearningProcess(queue_info)
+            except Exception as e:
+                dbg.log('Exception occured during starting learning process')
+                self.__stopLearningProcess()
+                raise
         #endif
     #enddef
 
@@ -355,7 +323,6 @@ class PicturedetectorDaemon(Daemon):
         # nacist obrazky z picture setu
         result = self.config.backend.proxy.picture.listSimple(picture_set)
         pictures = result['data']
-        dbg.log(str(pictures), INFO=3)
 
         # prochazeni obrazku a ukladani do prislusnych souboru
         for picture in pictures:
@@ -365,11 +332,14 @@ class PicturedetectorDaemon(Daemon):
                 file = f_validate
             elif picture['learning_set'] == self.DB_TESTING:
                 continue
+            else:
+                continue;
             #endif
 
             # nutna dekrementace ID hodnot (v DB jsou hodnoty od 1), ale caffe pocita skupiny od 0
-            line = picture['hash'] + ' ' + str(picture['learning_subset_id'] - 1) + "\n"
-            file.write(line)
+            picture_path = picture['hash'].replace('"', '\\"').replace("'", "\\'");
+            line = picture_path + ' ' + str(picture['learning_subset_id'] - 1) + "\n"
+            file.write(line.encode('utf-8'))
         
         # uzavreni souboru
         f_learn.close()

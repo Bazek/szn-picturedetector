@@ -75,7 +75,7 @@ class ClassificationTest(object):
                         f = open(im, 'r')
                         data = f.read()
                         f.close()
-                        images_param.append({"id": num, "path": im, "data": fastrpc.Binary(data)})
+                        images_param.append({"id": im, "path": im, "data": fastrpc.Binary(data)})
                         num = num + 1
                     #endfor
 
@@ -84,7 +84,7 @@ class ClassificationTest(object):
                         results = self.config.backend.proxy.classify.classify(neural_network['id'], images_param)
                         end = time.time()
                         
-                        if self.config.caffe.print_results == 1:
+                        if self.config.caffe.print_results == '1':
                             print str(results)
                         #endif
                         

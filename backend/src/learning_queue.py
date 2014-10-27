@@ -86,7 +86,7 @@ class LearningQueueBackend(Backend):
         self.cursor.execute(query)
         
         if self.cursor.rowcount == 0:
-            status, statusMessage = 404, "NeuralNetwork #%d not found." % neural_network_id
+            status, statusMessage = 404, "Learning is not running"
             raise Exception(status, statusMessage)
         #endif
         

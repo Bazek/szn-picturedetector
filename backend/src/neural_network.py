@@ -42,12 +42,18 @@ class NeuralNetworkBackend(Backend):
                     boolean gpu                     priznak jestli neuronova sit, muze vyuzivat gpu
                     string model_config             obsah souboru s konfiguraci modelu
                     string solver_config            obsah souboru s konfiguraci pro uceni
+                    string net_path                 cesta k souboru s konfiguraci pro reseni neuronove site
+                    string snapshot_path            cesta k slozce, kde se ukladaji snapshoty
+                    string train_source_path        cesta k slozce, kde jsou ulozeny trenovaci obrazky
+                    string train_meanfile_path      cesta k trenovacimu meanfile souboru
+                    string validate_source_path     cesta k slozce, kde jsou ulozeny validacni obrazky
+                    string validate_meanfile_path   cesta k validacnimu meanfile souboru
                 }
             }
         """
 
         query = """
-            SELECT neural_network.id, neural_network.description, neural_network.auto_init, neural_network.keep_saved, neural_network.gpu
+            SELECT neural_network.id, neural_network.description, neural_network.pretrained_iteration, neural_network.auto_init, neural_network.keep_saved, neural_network.gpu
             FROM neural_network
             WHERE neural_network.id = %s
         """
@@ -59,6 +65,12 @@ class NeuralNetworkBackend(Backend):
 
         neural_network['model_config'] = server.globals.rpcObjects['neural_network'].getFileContent(id, 'model', bypass_rpc_status_decorator=True)
         neural_network['solver_config'] = server.globals.rpcObjects['neural_network'].getFileContent(id, 'solver', bypass_rpc_status_decorator=True)
+        neural_network['net_path'] = server.globals.rpcObjects['neural_network'].getPath(id, 'trainmodel', bypass_rpc_status_decorator=True)
+        neural_network['snapshot_path'] = server.globals.rpcObjects['neural_network'].getPath(id, 'snapshot_folder', bypass_rpc_status_decorator=True) + self.config.neural_networks.snapshots_name
+        neural_network['train_source_path'] = os.path.join(self.config.neural_networks.base_path, 'imagenet_train_' + str(id) + '_db')
+        neural_network['train_meanfile_path'] = os.path.join(self.config.neural_networks.base_path, 'mean_file_' + str(id) + '_learn.binaryproto')
+        neural_network['validate_source_path'] = os.path.join(self.config.neural_networks.base_path, 'imagenet_val_' + str(id) + '_db')
+        neural_network['validate_meanfile_path'] = os.path.join(self.config.neural_networks.base_path, 'mean_file_' + str(id) + '_val.binaryproto')
         return neural_network
     #enddef
 
@@ -88,7 +100,7 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            SELECT neural_network.id, neural_network.description, neural_network.auto_init, neural_network.keep_saved, neural_network.gpu
+            SELECT neural_network.id, neural_network.description, neural_network.pretrained_iteration, neural_network.auto_init, neural_network.keep_saved, neural_network.gpu
             FROM neural_network
         """
         self.cursor.execute(query)
@@ -130,8 +142,12 @@ class NeuralNetworkBackend(Backend):
         self.cursor.execute(query, param)
         neural_network_id = self.cursor.lastrowid
         
-        #TODO opravit problem s predanim parametru jako text
-        dbg.log(str(param), INFO=3)
+        # Vytvoreni slozky pro ukladani snapshotu, bez toho by selhalo uceni pri ulozeni snapshotu
+        snapshot_folder = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'snapshot_folder', bypass_rpc_status_decorator=True)
+        if not os.path.exists(snapshot_folder):
+            os.makedirs(snapshot_folder)
+        #endif
+        
         server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'model', param['model_config'], bypass_rpc_status_decorator=True)
         server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'solver', param['solver_config'], bypass_rpc_status_decorator=True)
         server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'trainmodel', param['train_config'], bypass_rpc_status_decorator=True)
@@ -167,6 +183,7 @@ class NeuralNetworkBackend(Backend):
 
         filterDict = {
             "description":              "description = %(description)s",
+            "pretrained_iteration":     "pretrained_iteration = %(pretrained_iteration)s",
             "auto_init":                "auto_init = %(auto_init)s",
             "keep_saved":               "keep_saved = %(keep_saved)s",
             "gpu":                      "gpu = %(auto_init)s",
@@ -262,11 +279,41 @@ class NeuralNetworkBackend(Backend):
             filename = self.config.neural_networks.trainmodel_file
         elif file_type == 'mean_file':
             filename = self.config.neural_networks.mean_file
+        elif file_type == 'snapshot_folder':
+            filename = self.config.neural_networks.snapshots_folder
         else:
             raise Exception(500, "Unknown file type (" + file_type + ")")
         #endif
         
         path = os.path.join(base_path, str(neural_network_id), filename)
+        return path
+    #enddef
+    
+    @rpcStatusDecorator('neural_network.getSnapshotPath', 'S:is')
+    def getSnapshotPath(self, neural_network_id, iteration):
+        """
+        Vrati cestu ke slozce s ulozenymi 
+        Cesta je vygenerovana dle ID neuronove site.
+
+        Signature:
+            neural_network.getPath(int neural_network_id, string file_type)
+
+        @neural_network_id           Id Neuronove site
+        @iteration                   Iterace uceni
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                string data             Cesta k souboru
+            }
+        """
+
+        snapshot_folder = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'snapshot_folder', bypass_rpc_status_decorator=True)
+        filename = self.config.neural_networks.snapshots_name
+        caffe_const = self.config.caffe.caffe_snapshot_const
+        extension = self.config.caffe.caffe_snapshot_ext
+        path = os.path.join(snapshot_folder, filename + caffe_const + str(iteration) + extension)
         return path
     #enddef
 
@@ -283,6 +330,12 @@ class NeuralNetworkBackend(Backend):
     @rpcStatusDecorator('neural_network.saveFile', 'S:s')
     def saveFile(self, id, file_type, file_content):
         file_path = server.globals.rpcObjects['neural_network'].getPath(id, file_type, bypass_rpc_status_decorator=True)
+        
+        # Vytvoreni potrebnych adresaru
+        dir = os.path.dirname(file_path)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+            
         file = open(file_path, 'w')
         if not file:
             raise self.ProcessException("Nemuzu vytvorit " + file_type + " soubor (" + file_path + ")!")
@@ -303,6 +356,140 @@ class NeuralNetworkBackend(Backend):
         #endif
         
         return True
+    #enddef
+    
+    @rpcStatusDecorator('neural_network.test', 'S:ii')
+    def test(self, id, picture_set_id):
+        params = {'learning_set': 'testing'}
+        pictures = server.globals.rpcObjects['picture'].listSimple(picture_set_id, params, bypass_rpc_status_decorator=True)
+        max_images = int(self.config.test.max_images)
+        print_results = []
+        start = 0
+        correct = 0
+        wrong = 0
+        wrong_false = 0
+        wrong_true = 0
+        wrong_60 = 0
+        wrong_70 = 0
+        wrong_80 = 0
+        wrong_90 = 0
+        wrong_100 = 0
+        correct_sum = 0
+        wrong_sum = 0
+        wrong_false_sum = 0
+        wrong_true_sum = 0
+        stop = max_images
+        wrong_false_files = []
+        wrong_true_files = []
+        failed_classify = 0
+        script_false = "#!/bin/bash\n"
+        script_true = "#!/bin/bash\n"
+
+        while 1:
+            pictures_block = pictures[start:stop]
+            classify_images = []
+            images_categories = {}
+            
+            if len(pictures_block) < 1:
+                break
+            
+            start = stop
+            stop += max_images
+            
+            for picture in pictures_block:
+                subset = picture['learning_subset_id']
+                hash = picture['hash']
+                images_categories[hash] = subset
+                classify_images.append({'id': hash, 'path': hash})
+            #endfor
+
+            results = server.globals.rpcObjects['classify'].classify(id, classify_images, bypass_rpc_status_decorator=True)
+            failed_classify += len(pictures_block) - len(results)
+            
+            for hash in results:
+                correct_category = images_categories[hash]
+                # Kategorie v DB zacina od 1, v caffe zacina od 0
+                category = (results[hash][0]['category'] + 1)
+                percentage = results[hash][0]['percentage']
+
+                if category == correct_category:
+                    correct += 1
+                    correct_sum += percentage
+                    message='OK'
+                else:
+                    wrong += 1
+                    wrong_sum += percentage
+                    message='Wrong'
+                    if (category - correct_category) < 0:
+                        wrong_false += 1
+                        wrong_false_sum += percentage
+                        wrong_false_files.append("{0:.4f}".format(percentage) + "\t" + hash)
+                        script_false += "xdg-open " + hash + "\nsleep 4\n"
+                    else:
+                        wrong_true += 1
+                        wrong_true_sum += percentage
+                        wrong_true_files.append("{0:.4f}".format(percentage) + "\t" + hash)
+                        script_true += "xdg-open " + hash + "\nsleep 4\n"
+                        
+                    if percentage < 0.6:
+                        wrong_60 += 1
+                    elif percentage < 0.7:
+                        wrong_70 += 1
+                    elif percentage < 0.8:
+                        wrong_80 += 1
+                    elif percentage < 0.9:
+                        wrong_90 += 1
+                    elif percentage < 1:
+                        wrong_100 += 1
+                    
+                #print_results.append(hash + ":\n\t" + message + "\t(" + "{0:.4f}".format(percentage) + ")")
+            #endfor 
+            
+        #endwhile
+        
+        script_false += "sleep 300"
+        script_true += "sleep 300"
+        
+        print_results.append("----------------------------------------")
+        print_results.append("Script True")
+        print_results.append(script_true)
+        print_results.append("Script False")
+        print_results.append(script_false)
+        print_results.append("----------------------------------------")
+        print_results.append("Wrong True files")
+        for record in wrong_true_files:
+            print_results.append(record)
+        print_results.append("----------------------------------------")
+        print_results.append("Wrong False files")
+        for record in wrong_false_files:
+            print_results.append(record)
+        print_results.append("----------------------------------------")
+        print_results.append("Wrong")
+        print_results.append("Wrong False:\t" + str(wrong_false))
+        print_results.append("Wrong True:\t" + str(wrong_true))
+        print_results.append("Wrong < 0.6:\t" + str(wrong_60))
+        print_results.append("Wrong < 0.7:\t" + str(wrong_70))
+        print_results.append("Wrong < 0.8:\t" + str(wrong_80))
+        print_results.append("Wrong < 0.9:\t" + str(wrong_90))
+        print_results.append("Wrong < 1.0:\t" + str(wrong_100))
+        print_results.append("----------------------------------------")
+        print_results.append("Average values")
+        if correct > 0:
+            print_results.append("Correct:\t\t" + str(correct_sum/correct))
+        if wrong > 0:
+            print_results.append("Wrong:\t\t" + str(wrong_sum/wrong))
+        if wrong_true > 0:
+            print_results.append("Wrong True:\t" + str(wrong_true_sum/wrong_true))
+        if wrong_false > 0:
+            print_results.append("Wrong False:\t" + str(wrong_false_sum/wrong_false))
+        print_results.append("----------------------------------------")
+        print_results.append("Final results")
+        print_results.append("Failed:\t\t" + str(failed_classify))
+        print_results.append("Correct:\t\t" + str(correct))
+        print_results.append("Wrong:\t\t" + str(wrong))
+        print_results.append("Total:\t\t" + str(correct + wrong))
+        
+        return print_results
     #enddef
 #endclass
 

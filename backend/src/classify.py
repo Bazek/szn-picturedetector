@@ -23,8 +23,8 @@ except ImportError:
 
 class ClassifyBackend(Backend):
     
-    @rpcStatusDecorator('classify.classify', 'S:iA')
-    def classify(self, neural_network_id, images):
+    @rpcStatusDecorator('classify.classify', 'S:iA,S:iAi')
+    def classify(self, neural_network_id, images, number_of_categories = None):
         """
         Funkce pro zpracovani obrazku
 
@@ -70,24 +70,32 @@ class ClassifyBackend(Backend):
         for image in images:
             if 'data' in image:
                 input_images.append(self._load_image_from_binary(image['data'].data))
-            elif image['path']:
-                open(image['path'], 'r')
-                input_images.append(caffe.io.load_image(image['path']))
+            elif 'path' in image:
+                try:
+                    input_images.append(caffe.io.load_image(image['path']))
+                except Exception as e:
+                    dbg.log('Exception - ' + image['path'] + ': ' + str(e), ERR=3)
             #endif
 
         # start prediction
-        prediction = net.predict(input_images)
-        
+        prediction = []
+        try:
+            prediction = net.predict(input_images)
+        except Exception as e:
+            dbg.log('Exception - prediction: ' + str(e), ERR=3)
+            
         # process results
         result={}
         
         i = 0
         
         # crop categories array
-        slice_size = int(self.config.classify.number_of_categories)
-        dbg.log("max output categories %s", slice_size, INFO=3)
+        if number_of_categories == None:
+            slice_size = int(self.config.classify.number_of_categories)
+        else:
+            slice_size = int(number_of_categories)
+        #endif
             
-        # @todo hope that result predictions are in same order as input images. Check if it is true.
         # go through all predicted images
         for scores in prediction:
             # get category id with best match
@@ -115,43 +123,41 @@ class ClassifyBackend(Backend):
 
     @rpcStatusDecorator('classify.createClassifier', 'S:i')
     def createClassifier(self, neural_network_id):
+        neural_network = server.globals.rpcObjects['neural_network'].get(neural_network_id, bypass_rpc_status_decorator=True)
         model_config = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'model', bypass_rpc_status_decorator=True)
-        #TODO udelat nacitani predtrenovanych modelu (binarek)
-        #pretrained_model_path = server.globals.rpcObjects['pretrained_model_path'].get(neural_network_id, bypass_rpc_status_decorator=True)
-        #TODO delete
-        #pretrained_model_path = '/www/picturedetector/caffe/models/imagenet-default/caffe_reference_imagenet_model'
-        pretrained_model_path = '/www/picturedetector/caffe/gen/caffe_imagenet_train_default_iter_8000.caffemodel'
+        
+        # Nacteni cesty k snapshotu nad kterym se bude provadet klasifikace
+        snapshot_path = server.globals.rpcObjects['neural_network'].getSnapshotPath(neural_network_id, neural_network['pretrained_iteration'], bypass_rpc_status_decorator=True)
+        
         # Vygenerovani cesty pro mean file soubor pro klasifikaci
         mean_file_path = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'mean_file', bypass_rpc_status_decorator=True)
 
+        dbg.log("Classifier file paths:\nModel config: " + model_config + "\nSnapshot: " + snapshot_path + "\nMeanFile:" + mean_file_path, INFO=3)
         # if classifier meanfile path is set, read the mean file
         mean_file = None
-        #TODO Classify with generated npy file will raise exception: axes don't match array
         if mean_file_path:
             mean_file = numpy.load(mean_file_path)
         #endif
         
-        neural_network = server.globals.rpcObjects['neural_network'].get(neural_network_id, bypass_rpc_status_decorator=True)
         if neural_network['gpu'] == None:
             gpu_mode = self.config.caffe.gpu_mode
         else:
             gpu_mode = neural_network['gpu']
         #endif
-        dbg.log("GPU MODE: " + str(gpu_mode), INFO=3)
+
         # create caffe classicifer
         net = caffe.Classifier(
             model_config,
-            pretrained_model_path,
+            snapshot_path,
             mean=mean_file,
             channel_swap=(2,1,0),
             raw_scale=255,
             gpu=gpu_mode
         )
-
+        
         net.set_phase_test()
         
         if server.globals.config.caffe.init_networks_on_start and not neural_network_id in server.globals.neuralNetworks:
-            
             if neural_network['keep_saved']:
                 server.globals.neuralNetworks[neural_network_id] = net
             #endif

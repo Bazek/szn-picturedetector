@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS `neural_network`;
 CREATE TABLE `neural_network` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `description` varchar(255) NOT NULL,
-  `pretrained_model_path` varchar(255) NOT NULL,
+  `pretrained_iteration` INT NOT NULL,
   `auto_init` TINYINT(1) NOT NULL DEFAULT '0',
   `keep_saved` TINYINT(1) NOT NULL DEFAULT '0',
   `gpu` TINYINT(1) NULL DEFAULT NULL,
