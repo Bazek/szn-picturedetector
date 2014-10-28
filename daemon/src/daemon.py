@@ -242,6 +242,28 @@ class PicturedetectorDaemon(Daemon):
         # Vytvorit imagenet pomoci souboru s obrazky a zadanych cest kde se maji vytvorit
         subprocess.call(create_args)
         
+        # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni mean souboru obrazku pro trenovaci obrazky
+        create_mean_file_args = []
+        create_mean_file_args.append(create_mean_file_script)
+        create_mean_file_args.append(layer_paths[util.TRAIN][util.SOURCE])
+        create_mean_file_args.append(layer_paths[util.TRAIN][util.MEAN_FILE])
+
+        # Vytvorit mean file pro trenovaci obrazky
+        subprocess.call(create_mean_file_args)
+        
+        # Vytvoreni binarniho souboru, ktery dokaze nacist numpy.
+        # Tento soubor je potreba pro klasifikaci obrazku, vyse vytvoreny mean file se pouziva pro trenovani site.
+        self._createClassifyMeanFile(layer_paths[util.TRAIN][util.MEAN_FILE], network['mean_file'])
+        
+        # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni mean souboru obrazku pro validacni obrazky
+        create_mean_file_args = []
+        create_mean_file_args.append(create_mean_file_script)
+        create_mean_file_args.append(layer_paths[util.VALIDATE][util.SOURCE])
+        create_mean_file_args.append(layer_paths[util.VALIDATE][util.MEAN_FILE])
+        
+        # Vytvorit mean file pro validacni obrazky
+        subprocess.call(create_mean_file_args)
+        
         # Vytvoreni solver souboru pro uceni
         #self._generateSolverFile(solver_config_path, network['id'])
         
