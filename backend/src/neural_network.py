@@ -69,11 +69,11 @@ class NeuralNetworkBackend(Backend):
         neural_network['solver_config'] = server.globals.rpcObjects['neural_network'].getFileContent(id, 'solver', bypass_rpc_status_decorator=True)
         neural_network['trainmodel_config'] = server.globals.rpcObjects['neural_network'].getFileContent(id, 'trainmodel', bypass_rpc_status_decorator=True)
         neural_network['net_path'] = server.globals.rpcObjects['neural_network'].getPath(id, 'trainmodel', bypass_rpc_status_decorator=True)
-        neural_network['snapshot_path'] = server.globals.rpcObjects['neural_network'].getPath(id, 'snapshot_dir', bypass_rpc_status_decorator=True) + self.config.neural_networks.snapshots_name
-        neural_network['train_source_path'] = os.path.join(self.config.neural_networks.base_path, 'imagenet_train_' + str(id) + '_db')
-        neural_network['train_meanfile_path'] = os.path.join(self.config.neural_networks.base_path, 'mean_file_' + str(id) + '_learn.binaryproto')
-        neural_network['validate_source_path'] = os.path.join(self.config.neural_networks.base_path, 'imagenet_val_' + str(id) + '_db')
-        neural_network['validate_meanfile_path'] = os.path.join(self.config.neural_networks.base_path, 'mean_file_' + str(id) + '_val.binaryproto')
+        neural_network['snapshot_path'] = os.path.join(server.globals.rpcObjects['neural_network'].getPath(id, 'snapshot_dir', bypass_rpc_status_decorator=True), self.config.neural_networks.snapshots_name)
+        neural_network['train_source_path'] = server.globals.rpcObjects['neural_network'].getPath(id, 'train_source_path', bypass_rpc_status_decorator=True)
+        neural_network['train_meanfile_path'] = server.globals.rpcObjects['neural_network'].getPath(id, 'train_meanfile_path', bypass_rpc_status_decorator=True)
+        neural_network['validate_source_path'] = server.globals.rpcObjects['neural_network'].getPath(id, 'validate_source_path', bypass_rpc_status_decorator=True)
+        neural_network['validate_meanfile_path'] = server.globals.rpcObjects['neural_network'].getPath(id, 'validate_meanfile_path', bypass_rpc_status_decorator=True)
         return neural_network
     #enddef
 
@@ -211,9 +211,9 @@ class NeuralNetworkBackend(Backend):
             del params['solver_config']
         #endif
         
-        if params['train_config']:
-            server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'trainmodel', params['train_config'], bypass_rpc_status_decorator=True)
-            del params['train_config']
+        if params['trainmodel_config']:
+            server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'trainmodel', params['trainmodel_config'], bypass_rpc_status_decorator=True)
+            del params['trainmodel_config']
         #endif
         
         SET = self._getFilter(filterDict, params, "SET", ", ")
@@ -354,7 +354,7 @@ class NeuralNetworkBackend(Backend):
             }
         """
 
-        snapshot_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'snapshot_dir', bypass_rpc_status_decorator=True)
+        snapshot_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'snapshot_path_prefix', bypass_rpc_status_decorator=True)
         filename = self.config.neural_networks.snapshots_name
         caffe_const = self.config.caffe.caffe_snapshot_const
         extension = self.config.caffe.caffe_snapshot_ext
