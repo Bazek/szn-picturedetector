@@ -130,7 +130,7 @@ class NeuralNetworkBackend(Backend):
             description                 Popisek
             model_config                obsah souboru s konfiguraci modelu
             solver_config               obsah souboru s konfiguraci pro uceni
-            train_config                obsah souboru s konfiguraci pro uceni modelu
+            trainmodel_config           obsah souboru s konfiguraci pro uceni modelu
             auto_init                   priznak automaticke inicializace neuronove site
             keep_saved                  priznak ulozeni neuronove site pri klasifikaci
             gpu                         priznak jestli neuronova sit, muze vyuzivat gpu
@@ -162,7 +162,7 @@ class NeuralNetworkBackend(Backend):
 
         server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'model', param['model_config'], bypass_rpc_status_decorator=True)
         server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'solver', param['solver_config'], bypass_rpc_status_decorator=True)
-        server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'trainmodel', param['train_config'], bypass_rpc_status_decorator=True)
+        server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'trainmodel', param['trainmodel_config'], bypass_rpc_status_decorator=True)
         return neural_network_id
     #enddef
 
