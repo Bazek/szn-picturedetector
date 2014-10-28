@@ -15,10 +15,11 @@ STATUS__neural_network_edit_ok                  Neuronová síť byla úspěšn�
 STATUS__neural_network_delete_failed            Nepodařilo se smazat neuronovou síť
 STATUS__neural_network_delete_ok                Neuronová síť byla smazána
 
-STATUS__model_not_found                         Model nebyl nalezen
-STATUS__model_edit_failed                       Editace modelu nebyla úspěšná
-STATUS__model_add_failed                        Nepodařilo se vytvořit nový model
-STATUS__model_edit_ok                           Model byl úspěšně uložen
-STATUS__model_delete_failed                     Nepodařilo se smazat model
-STATUS__model_delete_ok                         Model byl úspěšně smazán
+STATUS__learning_queue_not_found                Záznam ve frontě učení nebyl nalezen
+STATUS__learning_queue_edit_failed              Editace záznamu ve frontě učení nebyla úspěšná
+STATUS__learning_queue_add_failed               Nepodařilo se vytvořit nový záznam do fronty učení
+STATUS__learning_queue_edit_ok                  Záznam do fronty učení byl úspěšně uložen
+STATUS__learning_queue_delete_failed            Nepodařilo se smazat záznam ve frontě učení
+STATUS__learning_queue_delete_ok                Záznam ve frontě učení byl smazán
+
 

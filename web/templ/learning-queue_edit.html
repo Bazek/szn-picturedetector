@@ -1,0 +1,32 @@
+<?teng set .menu = 'learning-queue'?>
+<?teng include file='common/__head.html'?>
+
+<?teng frag learning_queue?>
+<div id="learning-queue_edit">
+    <form method="POST" class="pure-form">
+        <input name="id" type="hidden" value="${neural_network_id}" />
+        <div class="pure-control-group">
+            <label for="form_neural_network_id">Neuronová síť:</label>
+            <input class="pure-input" type="text" id="form_neural_network_id" name="neural_network_id" value="${neural_network_id}" size="16" maxlength="256" />
+        </div>
+        <div class="pure-control-group">
+            <label for="form_picture_set_id">Sada obrázků:</label>
+            <input class="pure-input" type="text" id="form_picture_set_id" name="picture_set_id" value="${picture_set_id}" size="16" maxlength="256" />
+        </div>
+        <div class="pure-control-group">
+            <label for="form_start_iteration">Počáteční iterace učení:</label>
+            <input class="pure-input" type="text" id="form_start_iteration" name="start_iteration" value="${start_iteration}" size="16" maxlength="256" />
+        </div>
+        <div class="pure-control-group">
+            <label for="form_status">Status:</label>
+            <input class="pure-input" type="text" id="form_status" name="status" value="${status}" size="16" maxlength="256" />
+        </div>
+        
+        <div class="pure-control">
+            <button type="submit" class="pure-button notice">Uložit</button>
+        </div>
+    </form>
+</div>
+<?teng endfrag?>
+
+<?teng include file='common/__foot.html'?>

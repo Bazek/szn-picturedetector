@@ -13,6 +13,7 @@ from lib.backend import Backend
 
 import caffe
 import os.path
+import shutil
 
 class NeuralNetworkBackend(Backend):
     """
@@ -42,6 +43,7 @@ class NeuralNetworkBackend(Backend):
                     boolean gpu                     priznak jestli neuronova sit, muze vyuzivat gpu
                     string model_config             obsah souboru s konfiguraci modelu
                     string solver_config            obsah souboru s konfiguraci pro uceni
+                    string trainmodel_config        obsaj souboru s konfiguraci modelu pro uceni
                     string net_path                 cesta k souboru s konfiguraci pro reseni neuronove site
                     string snapshot_path            cesta k slozce, kde se ukladaji snapshoty
                     string train_source_path        cesta k slozce, kde jsou ulozeny trenovaci obrazky
@@ -65,8 +67,9 @@ class NeuralNetworkBackend(Backend):
 
         neural_network['model_config'] = server.globals.rpcObjects['neural_network'].getFileContent(id, 'model', bypass_rpc_status_decorator=True)
         neural_network['solver_config'] = server.globals.rpcObjects['neural_network'].getFileContent(id, 'solver', bypass_rpc_status_decorator=True)
+        neural_network['trainmodel_config'] = server.globals.rpcObjects['neural_network'].getFileContent(id, 'trainmodel', bypass_rpc_status_decorator=True)
         neural_network['net_path'] = server.globals.rpcObjects['neural_network'].getPath(id, 'trainmodel', bypass_rpc_status_decorator=True)
-        neural_network['snapshot_path'] = server.globals.rpcObjects['neural_network'].getPath(id, 'snapshot_folder', bypass_rpc_status_decorator=True) + self.config.neural_networks.snapshots_name
+        neural_network['snapshot_path'] = server.globals.rpcObjects['neural_network'].getPath(id, 'snapshot_dir', bypass_rpc_status_decorator=True) + self.config.neural_networks.snapshots_name
         neural_network['train_source_path'] = os.path.join(self.config.neural_networks.base_path, 'imagenet_train_' + str(id) + '_db')
         neural_network['train_meanfile_path'] = os.path.join(self.config.neural_networks.base_path, 'mean_file_' + str(id) + '_learn.binaryproto')
         neural_network['validate_source_path'] = os.path.join(self.config.neural_networks.base_path, 'imagenet_val_' + str(id) + '_db')
@@ -100,14 +103,20 @@ class NeuralNetworkBackend(Backend):
         """
 
         query = """
-            SELECT neural_network.id, neural_network.description, neural_network.pretrained_iteration, neural_network.auto_init, neural_network.keep_saved, neural_network.gpu
+            SELECT neural_network.id, neural_network.description, neural_network.pretrained_iteration, neural_network.auto_init, neural_network.keep_saved, neural_network.gpu, learning_queue.status
             FROM neural_network
+            LEFT JOIN learning_queue ON learning_queue.neural_network_id = neural_network.id
         """
         self.cursor.execute(query)
         neural_networks = self.cursor.fetchall()
+        
+        for neural_network in neural_networks:
+            neural_network['status'] = self._getStatus(neural_network)
+        #endfor
+        
         return neural_networks
     #enddef
-
+    
     @rpcStatusDecorator('neural_network.add', 'S:S')
     @MySQL_master
     def add(self, param):
@@ -142,12 +151,15 @@ class NeuralNetworkBackend(Backend):
         self.cursor.execute(query, param)
         neural_network_id = self.cursor.lastrowid
         
-        # Vytvoreni slozky pro ukladani snapshotu, bez toho by selhalo uceni pri ulozeni snapshotu
-        snapshot_folder = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'snapshot_folder', bypass_rpc_status_decorator=True)
-        if not os.path.exists(snapshot_folder):
-            os.makedirs(snapshot_folder)
-        #endif
-        
+        # inicializace (vytvoreni) adresaru potrebnych pro uceni
+        init_dirs = ['base_dir', 'snapshot_dir', 'temp_dir']
+        for directory in init_dirs:
+            directory_path = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, directory, bypass_rpc_status_decorator=True)
+            if not os.path.exists(directory_path):
+                os.makedirs(directory_path)
+            #endif
+        #endfor
+
         server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'model', param['model_config'], bypass_rpc_status_decorator=True)
         server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'solver', param['solver_config'], bypass_rpc_status_decorator=True)
         server.globals.rpcObjects['neural_network'].saveFile(neural_network_id, 'trainmodel', param['train_config'], bypass_rpc_status_decorator=True)
@@ -245,7 +257,23 @@ class NeuralNetworkBackend(Backend):
             raise Exception(status, statusMessage)
         #endif
 
-        neural_network['solver_config'] = server.globals.rpcObjects['solver_config'].delete(neural_network_id, bypass_rpc_status_decorator=True)
+#        server.globals.rpcObjects['neural_network'].deleteFile(neural_network_id, 'model', bypass_rpc_status_decorator=True)
+#        server.globals.rpcObjects['neural_network'].deleteFile(neural_network_id, 'solver', bypass_rpc_status_decorator=True)
+#        server.globals.rpcObjects['neural_network'].deleteFile(neural_network_id, 'trainmodel', bypass_rpc_status_decorator=True)
+
+        base_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'base_dir', bypass_rpc_status_decorator=True)
+        temp_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'temp_dir', bypass_rpc_status_decorator=True)
+        
+        # Vymaze slozku s daty
+        if os.path.exists(base_dir):
+            shutil.rmtree(base_dir)
+        #endif
+        
+        # Vymaze slozku s docasnymi soubory
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        #endif
+        
         return True
     #enddef
     
@@ -269,7 +297,7 @@ class NeuralNetworkBackend(Backend):
             }
         """
 
-        base_path = self.config.neural_networks.base_path
+        base_folder = self.config.neural_networks.base_path
         
         if file_type == 'solver':
             filename = self.config.neural_networks.solver_file
@@ -278,14 +306,31 @@ class NeuralNetworkBackend(Backend):
         elif file_type == 'trainmodel':
             filename = self.config.neural_networks.trainmodel_file
         elif file_type == 'mean_file':
-            filename = self.config.neural_networks.mean_file
-        elif file_type == 'snapshot_folder':
+            filename = self.config.neural_networks.classify_mean_file
+        elif file_type == 'snapshot_dir':
             filename = self.config.neural_networks.snapshots_folder
+        elif file_type == 'base_dir':
+            filename = ''
+        elif file_type == 'temp_dir':
+            base_folder = self.config.neural_networks.temp_folder
+            filename = ''
+        elif file_type == 'train_source_path':
+            base_folder = self.config.neural_networks.temp_folder
+            filename = self.config.neural_networks.train_db_folder
+        elif file_type == 'train_meanfile_path':
+            base_folder = self.config.neural_networks.temp_folder
+            filename = self.config.neural_networks.train_mean_file
+        elif file_type == 'validate_source_path':
+            base_folder = self.config.neural_networks.temp_folder
+            filename = self.config.neural_networks.validation_db_folder
+        elif file_type == 'validate_meanfile_path':
+            base_folder = self.config.neural_networks.temp_folder
+            filename = self.config.neural_networks.validation_mean_file
         else:
             raise Exception(500, "Unknown file type (" + file_type + ")")
         #endif
         
-        path = os.path.join(base_path, str(neural_network_id), filename)
+        path = os.path.join(base_folder, str(neural_network_id), filename)
         return path
     #enddef
     
@@ -309,11 +354,11 @@ class NeuralNetworkBackend(Backend):
             }
         """
 
-        snapshot_folder = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'snapshot_folder', bypass_rpc_status_decorator=True)
+        snapshot_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'snapshot_dir', bypass_rpc_status_decorator=True)
         filename = self.config.neural_networks.snapshots_name
         caffe_const = self.config.caffe.caffe_snapshot_const
         extension = self.config.caffe.caffe_snapshot_ext
-        path = os.path.join(snapshot_folder, filename + caffe_const + str(iteration) + extension)
+        path = os.path.join(snapshot_dir, filename + caffe_const + str(iteration) + extension)
         return path
     #enddef
 
@@ -491,5 +536,19 @@ class NeuralNetworkBackend(Backend):
         
         return print_results
     #enddef
+    
+    def _getStatus(self, neural_network_data):
+        status = neural_network_data['status']
+        if not neural_network_data['status']:
+            if neural_network_data['pretrained_iteration']:
+                status = 'ready (iter: ' + str(neural_network_data['pretrained_iteration']) + ')'
+            else:
+                status = 'not learned'
+            #endif
+        #endif
+        
+        return status
+    #enddef
+    
 #endclass
 

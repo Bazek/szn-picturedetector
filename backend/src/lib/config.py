@@ -57,12 +57,17 @@ class NeuralNetworkConfig(object):
     """ Parse neural networks section """
     def __init__(self, parser, section='neural-networks'):
         self.base_path = parser.get(section, 'BasePath', '/www/picturedetector/backend/data/neural-networks')
+        self.temp_folder = parser.get(section, 'TempFolder', '/www/picturedetector/backend/data/temp')
         self.solver_file = parser.get(section, 'SolverFile', 'solver.prototxt')
         self.deploy_file = parser.get(section, 'DeployFile', 'deploy.prototxt')
         self.trainmodel_file = parser.get(section, 'TrainmodelFile', 'trainmodel.prototxt')
-        self.mean_file = parser.get(section, 'MeanFile', 'meanfile.npy')
+        self.classify_mean_file = parser.get(section, 'ClassifyMeanFile', 'meanfile.npy')
         self.snapshots_folder = parser.get(section, 'SnapshotsFolder', 'snapshots')
         self.snapshots_name = parser.get(section, 'SnapshotsName', 'snapshot')
+        self.train_db_folder = parser.get(section, 'TrainDbFolder', 'imagenet_train_db')
+        self.validation_db_folder = parser.get(section, 'ValidationDbFolder', 'imagenet_val_db')
+        self.train_mean_file = parser.get(section, 'TrainMeanFile', 'mean_file_train.binaryproto')
+        self.validation_mean_file = parser.get(section, 'ValidationMeanFile', 'mean_file_val.binaryproto')
     #enddef
 #endclass
 

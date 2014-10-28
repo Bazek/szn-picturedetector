@@ -7,13 +7,14 @@
 
 from rpc_backbone.decorators import rpcStatusDecorator, MySQL_master, MySQL_slave
 from lib.backend import Backend
+from dbglog import dbg
 
 class LearningQueueBackend(Backend):
     @rpcStatusDecorator('learning_queue.get', 'S:i')
     @MySQL_slave
     def get(self, neural_network_id):
-        query = "SELECT neural_network_id, picture_set_id, start_iteration, status FROM learning_queue WHERE %s"
-        self.cursor.execute(query, id)
+        query = "SELECT neural_network_id, picture_set_id, start_iteration, status FROM learning_queue WHERE neural_network_id = %s"
+        self.cursor.execute(query, neural_network_id)
         queue = self.cursor.fetchone()
         
         if not queue:
@@ -43,7 +44,7 @@ class LearningQueueBackend(Backend):
         model_id = self.cursor.lastrowid
         return model_id
     
-    @rpcStatusDecorator('learning_queue.update', 'S:iS')
+    @rpcStatusDecorator('learning_queue.edit', 'S:iS')
     @MySQL_master
     def edit(self, neural_network_id, params):
         filterDict = {

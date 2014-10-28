@@ -1,14 +1,31 @@
 <?teng set .menu = 'learning-queue'?>
 <?teng include file='common/__head.html'?>
 
-<div id="picture-set_list">
+<div id="learning-queue_list">
+    <a href="/learning-queue/edit" class="pure-button pure-button-primary button-add">Nové učení</a>
     <table class="pure-table">
         <thead>
             <tr>
-                <th>ID</th>
-                <th>Popis</th>
+                <th>Neuronová síť</th>
+                <th>Sada obrázků</th>
+                <th>Počáteční iterace</th>
+                <th>Status</th>
+                <th>Akce</th>
+            </tr>
         </thead>
         <tbody>
+            <?teng frag learning_queue ?>
+                <tr>
+                    <td>#${neural_network_id}</td>
+                    <td>#${picture_set_id}</td>
+                    <td>${start_iteration}</td>
+                    <td>${status}</td>
+                    <td>
+                        <a href="/learning-queue/edit/${neural_network_id}" class="pure-button pure-button-xsmall">Upravit</a>
+                        <a href="/learning-queue/delete/${neural_network_id}" class="pure-button pure-button-error pure-button-xsmall" onclick="return confirm('Opravdu chcete odebrat učení z fronty?')">Smazat</a>
+                    </td>
+                </tr>
+            <?teng endfrag ?>
         </tbody>
     </table>
 </div>

@@ -10,13 +10,56 @@
             <input class="pure-input" type="text" id="form_description" name="description" value="${description}" size="16" maxlength="256" />
         </div>
         <div class="pure-control-group">
-            <label for="form_configuration">Konfigurace:</label>
-            <textarea class="pure-input" id="form_configuration" name="configuration">${configuration}</textarea>
+            <label for="form_model_config">Konfigurace modelu:</label>
+            <textarea class="pure-input" id="form_configuration" name="model_config">${model_config}</textarea>
         </div>
+        <div class="pure-control-group">
+            <label for="form_solver_config">Konfigurace solveru:</label>
+            <textarea class="pure-input" id="form_solver_config" name="solver_config">${solver_config}</textarea>
+        </div>
+        <div class="pure-control-group">
+            <label for="form_trainmodel_config">Konfigurace modelu učení:</label>
+            <textarea class="pure-input" id="form_trainmodel_config" name="train_config">${trainmodel_config}</textarea>
+        </div>
+        <div class="pure-control-group">
+            <label for="form_auto_init">Autoinicializace:</label>
+            <input type="text" class="pure-input" id="form_auto_init" name="auto_init" value="${auto_init}"/>
+        </div>
+        <div class="pure-control-group">
+            <label for="form_keep_saved">Uchování klasifikátoru:</label>
+            <input type="text" class="pure-input" id="form_keep_saved" name="keep_saved" value="${keep_saved}"/>
+        </div>
+        <div class="pure-control-group">
+            <label for="form_gpu">Používat GPU</label>
+            <input type="text" class="pure-input" id="form_gpu" name="gpu" value="${gpu}"/>
+        </div>
+        
         <div class="pure-control">
             <button type="submit" class="pure-button notice">Uložit</button>
         </div>
     </form>
+    <div>
+        <h3>Vygenerované cesty k souborům</h3>
+        <p>Tyto cesty musí být použity polích Konfigurace solveru! Jinak není zajištěno správné fungování učení:</p>
+        <dl>
+            <dt>net</dt>
+            <dd>${net_path}</dd>
+            <dt>snapshot_prefix</dt>
+            <dd>${snapshot_path}</dd>
+        </dl>
+        
+        <p>Tyto cesty musí být použity polích Konfigurace učení! Jinak není zajištěno správné fungování učení:</p>
+        <dl>
+            <dt>source (TRAIN)</dt>
+            <dd>${train_source_path}</dd>
+            <dt>mean_file (TRAIN)</dt>
+            <dd>${train_meanfile_path}</dd>
+            <dt>source (TEST)</dt>
+            <dd>${validate_source_path}</dd>
+            <dt>mean_file (TEST)</dt>
+            <dd>${validate_meanfile_path}</dd>
+        </dl>
+    </div>
 </div>
 <?teng endfrag?>
 

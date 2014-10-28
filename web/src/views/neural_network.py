@@ -48,8 +48,14 @@ def neural_network__edit_GET(id):
 def neural_network__edit_POST(id):
     neural_network = {
         "description":  request.form.get("description"),
-        "configuration":  request.form.get("configuration"),
+        "model_config":  request.form.get("model_config"),
+        "solver_config":  request.form.get("solver_config"),
+        "trainmodel_config":  request.form.get("trainmodel_config"),
+        "auto_init":  request.form.get("auto_init"),
+        "keep_saved":  request.form.get("keep_saved"),
+        "gpu":  request.form.get("gpu"),
     }
+    
     if id:
         result = conf.backend.proxy.neural_network.edit(id, neural_network)
         if result.get("status") != 200:
