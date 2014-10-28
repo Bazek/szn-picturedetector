@@ -354,7 +354,7 @@ class NeuralNetworkBackend(Backend):
             }
         """
 
-        snapshot_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'snapshot_path_prefix', bypass_rpc_status_decorator=True)
+        snapshot_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'snapshot_dir', bypass_rpc_status_decorator=True)
         filename = self.config.neural_networks.snapshots_name
         caffe_const = self.config.caffe.caffe_snapshot_const
         extension = self.config.caffe.caffe_snapshot_ext

@@ -217,6 +217,10 @@ class PicturedetectorDaemon(Daemon):
             shutil.rmtree(layer_paths[util.TRAIN][util.SOURCE])
         #endif
         
+        if os.path.exists(layer_paths[util.VALIDATE][util.SOURCE]):
+            shutil.rmtree(layer_paths[util.VALIDATE][util.SOURCE])
+        #endif
+        
         # Otevreni souboru pro zapis 
         learn_log_path = self._getLearnLogPath(neural_network_id)
         if startIteration == 0:
@@ -247,13 +251,17 @@ class PicturedetectorDaemon(Daemon):
         create_mean_file_args.append(create_mean_file_script)
         create_mean_file_args.append(layer_paths[util.TRAIN][util.SOURCE])
         create_mean_file_args.append(layer_paths[util.TRAIN][util.MEAN_FILE])
+        dbg.log("create_mean_file_args " + str(create_mean_file_args), INFO=3)
 
         # Vytvorit mean file pro trenovaci obrazky
         subprocess.call(create_mean_file_args)
         
+        # Vygenerovani cesty pro mean file soubor pro klasifikaci
+        mean_file_path = os.path.join(self.config.neural_networks.base_path, str(neural_network_id), self.config.neural_networks.mean_file)
+        
         # Vytvoreni binarniho souboru, ktery dokaze nacist numpy.
         # Tento soubor je potreba pro klasifikaci obrazku, vyse vytvoreny mean file se pouziva pro trenovani site.
-        self._createClassifyMeanFile(layer_paths[util.TRAIN][util.MEAN_FILE], network['mean_file'])
+        self._createClassifyMeanFile(layer_paths[util.TRAIN][util.MEAN_FILE], mean_file_path)
         
         # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni mean souboru obrazku pro validacni obrazky
         create_mean_file_args = []
