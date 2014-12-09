@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-TOOLS=/www/picturedetector/caffe/build/tools
+TOOLS=/usr/tools
 
 if [ -z "$1" ]; then
   echo "Missing train val model file"

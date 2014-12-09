@@ -10,7 +10,6 @@
 
 import sys
 sys.path.insert(0, '/www/picturedetector/common/module/')
-
 from szn_utils.configutils import ConfigBox
 from szn_utils.daemon import DaemonConfig, Daemon
 from dbglog import dbg
@@ -22,8 +21,8 @@ import signal
 import subprocess
 import shutil
 import re
-
-import caffe
+from random import shuffle
+import time
 import numpy as np
 from caffe.proto import caffe_pb2
 from google.protobuf import text_format
@@ -45,8 +44,7 @@ class PicturedetectorDaemonConfig(DaemonConfig):
             self.image_validate_file_suffix = parser.get(section, "ImageValidateFileSuffix")
             self.learn_output_path = parser.get(section, "LearnOutputPath")
             self.learn_outout_prefix = parser.get(section, "LearnOutputPrefix")
-            self.solver_file_path = parser.get(section, "SolverFilePath")
-            self.solver_file_prefix = parser.get(section, "SolverFilePrefix")           
+            self.learn_output_timestamp_format = parser.get(section, "LearnOutputTimestampFormat")
         #enddef
     #endclass
     
@@ -55,8 +53,6 @@ class PicturedetectorDaemonConfig(DaemonConfig):
         def __init__(self, parser, section='neural-networks'):
             self.base_path = parser.get(section, 'BasePath', '/www/picturedetector/backend/data/neural-networks')
             self.solver_file = parser.get(section, 'SolverFile', 'solver.prototxt')
-#            self.deploy_file = parser.get(section, 'DeployFile', 'deploy.prototxt')
-#            self.trainmodel_file = parser.get(section, 'TrainmodelFile', 'trainmodel.prototxt')
             self.mean_file = parser.get(section, 'MeanFile', 'classifierMeanFile.npy')
         #enddef
     #endclass
@@ -201,8 +197,8 @@ class PicturedetectorDaemon(Daemon):
         save_file_path = self.config.caffe.save_file_path
         
         # Cteni konfigurace solveru z databaze
-        solver_config_path = os.path.join(self.config.neural_networks.base_path, str(neural_network_id), self.config.neural_networks.solver_file)
-
+        result = self.config.backend.proxy.neural_network.getPath(neural_network_id, 'solver')
+        solver_config_path = result['data']
         solver_config = util.readProtoSolverFile(solver_config_path)
         
         # Parsovani cest ze souboru imagenet_train_val.prototxt
@@ -211,16 +207,7 @@ class PicturedetectorDaemon(Daemon):
 
         # Ziskat picture set a vygenerovat soubory s cestami k obrazkum (validacni a ucici)
         picture_files = self._createFilesWithImages(picture_set)
-        
-        # Vymazat stare uloznene obrazky pokud existuji
-        if os.path.exists(layer_paths[util.TRAIN][util.SOURCE]):
-            shutil.rmtree(layer_paths[util.TRAIN][util.SOURCE])
-        #endif
-        
-        if os.path.exists(layer_paths[util.VALIDATE][util.SOURCE]):
-            shutil.rmtree(layer_paths[util.VALIDATE][util.SOURCE])
-        #endif
-        
+
         # Otevreni souboru pro zapis 
         learn_log_path = self._getLearnLogPath(neural_network_id)
         if startIteration == 0:
@@ -230,9 +217,25 @@ class PicturedetectorDaemon(Daemon):
         #endif
                 
         dbg.log('Learning log: ' + learn_log_path, INFO=3)
+        
+        # Vytvoreni potrebnych adresaru pro logovani
+        dir = os.path.dirname(learn_log_path)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+        #endif
+        
         learn_log = open(learn_log_path, file_mode)
         if not learn_log:
             raise self.ProcessException("Nemuzu vytvorit soubor s logem uceni (" + learn_log_path + ")!")
+        #endif
+        
+        # Vymazat stare uloznene obrazky pokud existuji
+        if os.path.exists(layer_paths[util.TRAIN][util.SOURCE]):
+            shutil.rmtree(layer_paths[util.TRAIN][util.SOURCE])
+        #endif
+        
+        if os.path.exists(layer_paths[util.VALIDATE][util.SOURCE]):
+            shutil.rmtree(layer_paths[util.VALIDATE][util.SOURCE])
         #endif
         
         # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni databaze obrazku. Prvni parametr je cesta ke skriptu
@@ -301,6 +304,14 @@ class PicturedetectorDaemon(Daemon):
     #enddef
         
     def _processIteration(self):
+#        f = open("/tmp/learningStatus.csv", "w")
+#        f.write("^iteration^;^accuracy^;^loss^\n")
+#        values = self._learningStatus(6)
+#        for key in sorted(values):
+#            value = values[key]
+#            f.write('^'+str(key)+'^;^'+str(value['accuracy'])+'^;^'+str(value['loss'])+"^\n")
+#        f.close()
+        
         if self.__learningInProgress():
             dbg.log("Learning still in progress", INFO=2)
             return
@@ -310,7 +321,7 @@ class PicturedetectorDaemon(Daemon):
         if queue_info:
             try:
                 self.__startLearningProcess(queue_info)
-            except Exception as e:
+            except Exception, e:
                 dbg.log('Exception occured during starting learning process')
                 self.__stopLearningProcess()
                 raise
@@ -353,6 +364,9 @@ class PicturedetectorDaemon(Daemon):
         # nacist obrazky z picture setu
         result = self.config.backend.proxy.picture.listSimple(picture_set)
         pictures = result['data']
+        
+        # zamichani obrazku, je potreba pro lepsi uceni s mensim poctem vzorku v jedne iteraci (u grafickych karet s mensi pameti)
+        shuffle(pictures)
 
         # prochazeni obrazku a ukladani do prislusnych souboru
         for picture in pictures:
@@ -366,8 +380,10 @@ class PicturedetectorDaemon(Daemon):
                 continue;
             #endif
 
-            # nutna dekrementace ID hodnot (v DB jsou hodnoty od 1), ale caffe pocita skupiny od 0
+            # escapovani znaku " a ' v nazvech souboru
             picture_path = picture['hash'].replace('"', '\\"').replace("'", "\\'");
+            
+            # nutna dekrementace ID hodnot (v DB jsou hodnoty od 1), ale caffe pocita skupiny od 0
             line = picture_path + ' ' + str(picture['learning_subset_id'] - 1) + "\n"
             file.write(line.encode('utf-8'))
         
@@ -523,7 +539,7 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
     def _getLearnLogPath(self, neural_network_id):
-        log_path = os.path.join(self.config.caffe.learn_output_path, self.config.caffe.learn_outout_prefix + str(neural_network_id) + self.LOG_FILE_EXT)
+        log_path = os.path.join(self.config.caffe.learn_output_path, str(neural_network_id), self.config.caffe.learn_outout_prefix + time.strftime(self.config.caffe.learn_output_timestamp_format) + self.LOG_FILE_EXT)
         return log_path
     #enddef
 

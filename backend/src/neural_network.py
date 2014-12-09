@@ -11,7 +11,6 @@ import metaserver.fastrpc as server
 from rpc_backbone.decorators import rpcStatusDecorator, MySQL_master, MySQL_slave
 from lib.backend import Backend
 
-import caffe
 import os.path
 import shutil
 
@@ -38,6 +37,7 @@ class NeuralNetworkBackend(Backend):
                 struct data {
                     integer id                      neural network id
                     string description              description
+                    integer pretrained_iteration    iterace pouzita pro klasifikaci
                     boolean auto_init               priznak automaticke inicializace neuronove site
                     boolean keep_saved              priznak ulozeni neuronove site pri klasifikaci
                     boolean gpu                     priznak jestli neuronova sit, muze vyuzivat gpu
@@ -93,6 +93,7 @@ class NeuralNetworkBackend(Backend):
                 array data {
                     integer id                      neural_network_id
                     string description              description
+                    integer pretrained_iteration    iterace pouzita pro klasifikaci
                     boolean auto_init               priznak automaticke inicializace neuronove site
                     boolean keep_saved              priznak ulozeni neuronove site pri klasifikaci
                     boolean gpu                     priznak jestli neuronova sit, muze vyuzivat gpu
@@ -152,7 +153,7 @@ class NeuralNetworkBackend(Backend):
         neural_network_id = self.cursor.lastrowid
         
         # inicializace (vytvoreni) adresaru potrebnych pro uceni
-        init_dirs = ['base_dir', 'snapshot_dir', 'temp_dir']
+        init_dirs = ['base_dir', 'snapshot_dir', 'temp_dir', 'log_dir']
         for directory in init_dirs:
             directory_path = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, directory, bypass_rpc_status_decorator=True)
             if not os.path.exists(directory_path):
@@ -178,6 +179,7 @@ class NeuralNetworkBackend(Backend):
         @neural_network_id  Id neuronove site
         @params {
             description                 Popisek
+            pretrained_iteration        iterace pouzita pro klasifikaci
             auto_init                   priznak automaticke inicializace neuronove site
             keep_saved                  priznak ulozeni neuronove site pri klasifikaci
             gpu                         priznak jestli neuronova sit, muze vyuzivat gpu
@@ -198,7 +200,7 @@ class NeuralNetworkBackend(Backend):
             "pretrained_iteration":     "pretrained_iteration = %(pretrained_iteration)s",
             "auto_init":                "auto_init = %(auto_init)s",
             "keep_saved":               "keep_saved = %(keep_saved)s",
-            "gpu":                      "gpu = %(auto_init)s",
+            "gpu":                      "gpu = %(gpu)s",
         }
 
         if params['model_config']:
@@ -314,6 +316,12 @@ class NeuralNetworkBackend(Backend):
         elif file_type == 'temp_dir':
             base_folder = self.config.neural_networks.temp_folder
             filename = ''
+        elif file_type == 'log_dir':
+            base_folder = self.config.neural_networks.logs_folder
+            filename = ''
+        elif file_type == 'new_log':
+            base_folder = self.config.neural_networks.logs_folder
+            filename = datetime.datetime.now().strftime(self.config.neural_networks.log_timestamp_format) + self.config.neural_networks.log_extension
         elif file_type == 'train_source_path':
             base_folder = self.config.neural_networks.temp_folder
             filename = self.config.neural_networks.train_db_folder
@@ -469,12 +477,12 @@ class NeuralNetworkBackend(Backend):
                         wrong_false += 1
                         wrong_false_sum += percentage
                         wrong_false_files.append("{0:.4f}".format(percentage) + "\t" + hash)
-                        script_false += "xdg-open " + hash + "\nsleep 4\n"
+                        script_false += "xdg-open " + hash + "\nsleep 3\n"
                     else:
                         wrong_true += 1
                         wrong_true_sum += percentage
                         wrong_true_files.append("{0:.4f}".format(percentage) + "\t" + hash)
-                        script_true += "xdg-open " + hash + "\nsleep 4\n"
+                        script_true += "xdg-open " + hash + "\nsleep 3\n"
                         
                     if percentage < 0.6:
                         wrong_60 += 1
@@ -502,8 +510,8 @@ class NeuralNetworkBackend(Backend):
         print_results.append(script_false)
         print_results.append("----------------------------------------")
         print_results.append("Wrong True files")
-        for record in wrong_true_files:
-            print_results.append(record)
+#        for record in wrong_true_files:
+#            print_results.append(record)
         print_results.append("----------------------------------------")
         print_results.append("Wrong False files")
         for record in wrong_false_files:
@@ -536,6 +544,81 @@ class NeuralNetworkBackend(Backend):
         
         return print_results
     #enddef
+
+    @rpcStatusDecorator('neural_network.learningStatus', 'S:s')
+    def learningStatus(self, neural_network_id, learn_log):
+        log_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'log_dir', bypass_rpc_status_decorator=True)
+        log_path = os.path.join(log_dir, learn_log)
+        dbg.log(log_path, INFO=3)
+        # Otevreni souboru s logem uceni
+        file = open(log_path, 'r')
+        if not file:
+            raise self.ProcessException("Logovaci soubor uceni neexistuje (" + log_path + ")!")
+        #endif
+        
+        # Priprava navratove hodnoty
+        results = {}
+        act_iteration = False
+        has_snapshot = False
+        is_restored = False
+        
+        # Cteni konfiguracniho souboru
+        for line in file:
+            # V souboru jsme nasli ze byl vytvoreny snapshot (plati pro cislo iterace uvedene pod nim)
+            m_snapshot = re.search("Snapshotting\s+solver\s+state\s+to", line, flags=re.IGNORECASE)
+            if m_snapshot:
+                has_snapshot = True
+            #endif
+            
+            # Pokud jsme nekdy obnovili snapshot, tak ponechame predchozi hodnoty, protoze obnova snapshotu neobsahuje namerene hodnoty
+            m_restoring = re.search("Restoring\sprevious\ssolver\sstatus\sfrom", line, flags=re.IGNORECASE)
+            if m_restoring:
+                is_restored = True
+            #endif
+            
+            # V souboru jsme nasli cislo testovane iterace
+            m_iter = re.search("Iteration\s+(\d+),\s+Testing\s+net", line, flags=re.IGNORECASE)
+            if m_iter:
+                if not is_restored:
+                    act_iteration = int(m_iter.group(1))
+                    results[act_iteration] = {
+                        self.ACCURACY: 0.0,
+                        self.LOSS: 0.0,
+                        self.SNAPSHOT: has_snapshot
+                    }
+                else:
+                    is_restored = False
+                #endif
+
+                
+                has_snapshot = False
+            #endif
+
+            # V souboru jsme nasli vysledky pro testovanou iteraci
+            
+            m_result = re.search("Test\s+net\s+output\s+#(\d+):\s*[^=]+=\s*((?:(?:[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)|nan))", line, flags=re.IGNORECASE)
+            if m_result:
+                value = m_result.group(2)
+                if value == 'nan':
+                    value = 0
+                #endif
+                
+                value = float(value)
+                
+                if act_iteration:
+                    if m_result.group(1) == '0':
+                        results[act_iteration][self.ACCURACY] = value
+                    elif m_result.group(1) == '1':
+                        results[act_iteration][self.LOSS] = value
+                    #endif
+                #endif
+            #endif
+            
+        #endfor
+        
+        file.close()
+        return results
+    #enddef
     
     def _getStatus(self, neural_network_data):
         status = neural_network_data['status']
@@ -549,6 +632,16 @@ class NeuralNetworkBackend(Backend):
         
         return status
     #enddef
+    
+    def _getFiles(self, folder):
+        files = []
+        for file in os.listdir(folder):
+            if file.endswith(self.config.neural_networks.log_extension):
+                files.append(file)
+            #endif
+        #endfor
+                
+        return files
     
 #endclass
 

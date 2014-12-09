@@ -83,6 +83,7 @@ class ClassificationTest(object):
                         start = time.time()
                         results = self.config.backend.proxy.classify.classify(neural_network['id'], images_param)
                         end = time.time()
+                        print '  - Time: ' + str((end - start)) + ' s'
                         
                         if self.config.caffe.print_results == '1':
                             print str(results)
@@ -91,7 +92,6 @@ class ClassificationTest(object):
                     except Exception, e:
                         print 'EXCEPTION:' + str(e)
                         
-                    print '  - Time: ' + str((end - start)) + ' s'
                 else:
                     print 'Not enough images'
                 #endif

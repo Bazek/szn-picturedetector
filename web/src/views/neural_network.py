@@ -51,6 +51,7 @@ def neural_network__edit_POST(id):
         "model_config":  request.form.get("model_config"),
         "solver_config":  request.form.get("solver_config"),
         "trainmodel_config":  request.form.get("trainmodel_config"),
+        "pretrained_iteration":  request.form.get("pretrained_iteration"),
         "auto_init":  request.form.get("auto_init"),
         "keep_saved":  request.form.get("keep_saved"),
         "gpu":  request.form.get("gpu"),

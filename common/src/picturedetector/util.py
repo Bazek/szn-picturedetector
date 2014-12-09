@@ -9,6 +9,8 @@
 # Copyright (C) Seznam.cz a.s. 2014
 # All Rights Reserved
 
+import sys
+sys.path.insert(0, '/usr/python')
 from caffe.proto import caffe_pb2
 from google.protobuf import text_format
 import os.path
