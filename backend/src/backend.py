@@ -16,7 +16,6 @@ from lib.backend import Backend
 from neural_network import NeuralNetworkBackend
 from picture import PictureSetBackend, PictureBackend
 from classify import ClassifyBackend
-from solver_config import SolverConfigBackend
 from learning_queue import LearningQueueBackend
 
 def init(cfg):
