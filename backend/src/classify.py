@@ -22,7 +22,7 @@ except ImportError:
         "for further instructions.")
 
 class ClassifyBackend(Backend):
-    
+	
     @rpcStatusDecorator('classify.classify', 'S:iA,S:iAi')
     def classify(self, neural_network_id, images, number_of_categories = None):
         """
@@ -54,25 +54,65 @@ class ClassifyBackend(Backend):
             }
         """
         
-        image_path = "/www/pictures/256/test/rejected/pic120017.jpg"
-        model_config = "/www/picturedetector/backend/data/neural-networks/6/deploy.prototxt"
-        snapshot_path = "/www/picturedetector/backend/data/neural-networks/6/snapshots/snapshot_iter_300000.caffemodel"
-        mean_file_path = "/www/picturedetector/backend/data/neural-networks/6/meanfile.npy"
-        mean_file = numpy.load(mean_file_path)
-        net = caffe.Classifier(
-            model_config,
-            snapshot_path,
-            mean=mean_file,
-            channel_swap=(2,1,0),
-            raw_scale=255,
-            gpu=1
-        )
+        # Nacteni nebo vytvoreni klasifikatoru
+        if neural_network_id in server.globals.neuralNetworks:
+            net = server.globals.neuralNetworks[neural_network_id]
+        else:
+            net = self.createClassifier(neural_network_id, bypass_rpc_status_decorator=True)
+        #endif
 
+        # if we get only one image, convert it to array of one image object
+        if not isinstance(images, list):
+            images = [images]
+
+        # array of loaded images
         input_images=[]
-        input_images.append(caffe.io.load_image(image_path))
-        input_images
-        net.predict(input_images)
-        return True
+        for image in images:
+            if 'data' in image:
+                input_images.append(self._load_image_from_binary(image['data'].data))
+            elif 'path' in image:
+                try:
+                    input_images.append(caffe.io.load_image(image['path']))
+                except Exception as e:
+                    dbg.log('Exception - ' + image['path'] + ': ' + str(e), ERR=3)
+            #endif
+
+        # start prediction
+        prediction = []
+        try:
+            prediction = net.predict(input_images)
+        except Exception as e:
+            dbg.log('Exception - prediction: ' + str(e), ERR=3)
+            
+        # process results
+        result={}
+        
+        i = 0
+        
+        # crop categories array
+        if number_of_categories == None:
+            slice_size = int(self.config.classify.number_of_categories)
+        else:
+            slice_size = int(number_of_categories)
+        #endif
+            
+        # go through all predicted images
+        for scores in prediction:
+            # get category id with best match
+            categoryIds = (-scores).argsort()
+            
+            if slice_size != 0:
+                categoryIds = categoryIds[:slice_size]
+            
+            # save prediction results
+            categories = []
+            for id in categoryIds:
+                categories.append({"category":id,"percentage":float(scores[id])})
+
+            result[str(images[i]['id'])] = categories;
+            i += 1
+            
+        return result
 
     #enddef
     
