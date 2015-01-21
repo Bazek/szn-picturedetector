@@ -314,26 +314,19 @@ class NeuralNetworkBackend(Backend):
         elif file_type == 'base_dir':
             filename = ''
         elif file_type == 'temp_dir':
-            base_folder = self.config.neural_networks.temp_folder
-            filename = ''
+            filename = self.config.neural_networks.temp_folder
         elif file_type == 'log_dir':
-            base_folder = self.config.neural_networks.logs_folder
-            filename = ''
+            filename = self.config.neural_networks.logs_folder
         elif file_type == 'new_log':
-            base_folder = self.config.neural_networks.logs_folder
-            filename = datetime.datetime.now().strftime(self.config.neural_networks.log_timestamp_format) + self.config.neural_networks.log_extension
+            filename = os.path.join(self.config.neural_networks.logs_folder, datetime.datetime.now().strftime(self.config.neural_networks.log_timestamp_format) + self.config.neural_networks.log_extension)
         elif file_type == 'train_source_path':
-            base_folder = self.config.neural_networks.temp_folder
-            filename = self.config.neural_networks.train_db_folder
+            filename = os.path.join(self.config.neural_networks.temp_folder, self.config.neural_networks.train_db_folder)
         elif file_type == 'train_meanfile_path':
-            base_folder = self.config.neural_networks.temp_folder
-            filename = self.config.neural_networks.train_mean_file
+            filename = os.path.join(self.config.neural_networks.temp_folder, self.config.neural_networks.train_mean_file)
         elif file_type == 'validate_source_path':
-            base_folder = self.config.neural_networks.temp_folder
-            filename = self.config.neural_networks.validation_db_folder
+            filename = os.path.join(self.config.neural_networks.temp_folder, self.config.neural_networks.validation_db_folder)
         elif file_type == 'validate_meanfile_path':
-            base_folder = self.config.neural_networks.temp_folder
-            filename = self.config.neural_networks.validation_mean_file
+            filename = os.path.join(self.config.neural_networks.temp_folder, self.config.neural_networks.validation_mean_file)
         else:
             raise Exception(500, "Unknown file type (" + file_type + ")")
         #endif
@@ -345,7 +338,7 @@ class NeuralNetworkBackend(Backend):
     @rpcStatusDecorator('neural_network.getSnapshotPath', 'S:is')
     def getSnapshotPath(self, neural_network_id, iteration):
         """
-        Vrati cestu ke slozce s ulozenymi 
+        Vrati cestu ke souboru s ulozenym stavem uceni s danou iteraci.
         Cesta je vygenerovana dle ID neuronove site.
 
         Signature:
@@ -368,6 +361,45 @@ class NeuralNetworkBackend(Backend):
         extension = self.config.caffe.caffe_snapshot_ext
         path = os.path.join(snapshot_dir, filename + caffe_const + str(iteration) + extension)
         return path
+    #enddef
+    
+    @rpcStatusDecorator('neural_network.getLogPath', 'S:is')
+    def getLogPath(self, neural_network_id, log_name):
+        """
+        Vrati cestu ke souboru s logem.
+        Cesta je vygenerovana dle ID neuronove site a zadaneho nazvu souboru.
+
+        Signature:
+            neural_network.getLogPath(int neural_network_id, string log_name)
+
+        @neural_network_id           Id Neuronove site
+        @log_name                    Nazev logu
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                string data             Cesta k souboru
+            }
+        """
+
+        log_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'log_dir', bypass_rpc_status_decorator=True)
+        extension = self.config.caffe.log_extension
+        path = os.path.join(log_dir, log_name + extension)
+        return path
+    #enddef
+    
+    @rpcStatusDecorator('neural_network.getLogs', 'S:i')
+    def getLogs(self, neural_network_id):
+        log_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'log_dir', bypass_rpc_status_decorator=True)
+        logs = self._getFiles(log_dir)
+        
+        paths = []
+        for path in logs:
+            paths.append({'filename': path})
+        #endfor
+        
+        return paths
     #enddef
 
     @rpcStatusDecorator('neural_network.getFileContent', 'S:i')
@@ -547,8 +579,7 @@ class NeuralNetworkBackend(Backend):
 
     @rpcStatusDecorator('neural_network.learningStatus', 'S:s')
     def learningStatus(self, neural_network_id, learn_log):
-        log_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'log_dir', bypass_rpc_status_decorator=True)
-        log_path = os.path.join(log_dir, learn_log)
+        log_path = server.globals.rpcObjects['neural_network'].getLogPath(neural_network_id, learn_log, bypass_rpc_status_decorator=True)
         dbg.log(log_path, INFO=3)
         # Otevreni souboru s logem uceni
         file = open(log_path, 'r')
@@ -642,6 +673,7 @@ class NeuralNetworkBackend(Backend):
         #endfor
                 
         return files
+    #enddef
     
 #endclass
 

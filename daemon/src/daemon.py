@@ -22,7 +22,6 @@ import subprocess
 import shutil
 import re
 from random import shuffle
-import time
 import numpy as np
 from caffe.proto import caffe_pb2
 from google.protobuf import text_format
@@ -37,23 +36,16 @@ class PicturedetectorDaemonConfig(DaemonConfig):
             self.learn_script = parser.get(section, "LearnScript")
             self.create_imagenet_script = parser.get(section, "CreateImagenetScript")
             self.create_mean_file_script = parser.get(section, "CreateMeanFileScript")
-            self.save_file_path = parser.get(section, "SaveFilePath")
-            self.image_file_path = parser.get(section, "ImageFilePath")
             self.image_file_prefix = parser.get(section, "ImageFilePrefix")
             self.image_learn_file_suffix = parser.get(section, "ImageLearnFileSuffix")
             self.image_validate_file_suffix = parser.get(section, "ImageValidateFileSuffix")
-            self.learn_output_path = parser.get(section, "LearnOutputPath")
-            self.learn_outout_prefix = parser.get(section, "LearnOutputPrefix")
-            self.learn_output_timestamp_format = parser.get(section, "LearnOutputTimestampFormat")
         #enddef
     #endclass
     
     class NeuralNetworkConfig(object):
         """ Parse solver section """
         def __init__(self, parser, section='neural-networks'):
-            self.base_path = parser.get(section, 'BasePath', '/www/picturedetector/backend/data/neural-networks')
-            self.solver_file = parser.get(section, 'SolverFile', 'solver.prototxt')
-            self.mean_file = parser.get(section, 'MeanFile', 'classifierMeanFile.npy')
+            pass
         #enddef
     #endclass
 
@@ -77,18 +69,6 @@ class PicturedetectorDaemon(Daemon):
     DB_TRAINING = 'training'
     DB_VALIDATION = 'validation'
     DB_TESTING = 'testing'
-    
-    # caffe vklada tuto konstantu pri ukladani stavu uceni
-    SAVE_FILE_PREFIX = '_iter_'
-    
-    # koncovka souboru s konfiguraci solveru
-    SOLVER_EXT = '.solverstate'
-    
-    # koncovka prototxt souboru
-    PROTOTXT_FILE_EXT = '.prototxt'
-    
-    # koncovka log souboru
-    LOG_FILE_EXT = '.log'
     
     # Konstanty, ktere slouzi jako klice do pole se statistikami uceni
     ACCURACY = 'accuracy'
@@ -194,11 +174,9 @@ class PicturedetectorDaemon(Daemon):
         learn_script = self.config.caffe.learn_script
         create_imagenet_script = self.config.caffe.create_imagenet_script
         create_mean_file_script = self.config.caffe.create_mean_file_script
-        save_file_path = self.config.caffe.save_file_path
         
         # Cteni konfigurace solveru z databaze
-        result = self.config.backend.proxy.neural_network.getPath(neural_network_id, 'solver')
-        solver_config_path = result['data']
+        solver_config_path = self._getPath(neural_network_id, 'solver')
         solver_config = util.readProtoSolverFile(solver_config_path)
         
         # Parsovani cest ze souboru imagenet_train_val.prototxt
@@ -206,25 +184,18 @@ class PicturedetectorDaemon(Daemon):
         layer_paths = util.parseLayerPaths(layer_config)
 
         # Ziskat picture set a vygenerovat soubory s cestami k obrazkum (validacni a ucici)
-        picture_files = self._createFilesWithImages(picture_set)
+        picture_files = self._createFilesWithImages(neural_network_id, picture_set)
 
         # Otevreni souboru pro zapis 
-        learn_log_path = self._getLearnLogPath(neural_network_id)
-        if startIteration == 0:
-            file_mode = 'w'
-        else:
-            file_mode = 'a'
-        #endif
-                
-        dbg.log('Learning log: ' + learn_log_path, INFO=3)
+        learn_log_path = self._getPath(neural_network_id, 'new_log')
         
-        # Vytvoreni potrebnych adresaru pro logovani
-        dir = os.path.dirname(learn_log_path)
+        dir = os.path.dirname(path)
         if not os.path.exists(dir):
             os.makedirs(dir)
         #endif
         
-        learn_log = open(learn_log_path, file_mode)
+        dbg.log('Learning log: ' + learn_log_path, INFO=3)
+        learn_log = open(learn_log_path, 'w')
         if not learn_log:
             raise self.ProcessException("Nemuzu vytvorit soubor s logem uceni (" + learn_log_path + ")!")
         #endif
@@ -260,7 +231,12 @@ class PicturedetectorDaemon(Daemon):
         subprocess.call(create_mean_file_args)
         
         # Vygenerovani cesty pro mean file soubor pro klasifikaci
-        mean_file_path = os.path.join(self.config.neural_networks.base_path, str(neural_network_id), self.config.neural_networks.mean_file)
+        mean_file_path = self._getPath(neural_network_id, 'mean_file')
+        
+        dir = os.path.dirname(path)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+        #endif
         
         # Vytvoreni binarniho souboru, ktery dokaze nacist numpy.
         # Tento soubor je potreba pro klasifikaci obrazku, vyse vytvoreny mean file se pouziva pro trenovani site.
@@ -291,7 +267,8 @@ class PicturedetectorDaemon(Daemon):
 
             dbg.log("Prefix souboru s ulozenym ucenim: " + solver_config.snapshot_prefix, INFO=3)
             
-            saved_file_path = os.path.join(save_file_path, solver_config.snapshot_prefix + self.SAVE_FILE_PREFIX + str(startIteration) + self.SOLVER_EXT)
+            result = self.config.backend.proxy.neural_network.getSnapshotPath(neural_network_id, startIteration)
+            saved_file_path = result['data']
             learn_args.append('-snapshot=' + saved_file_path)
         #endif
         dbg.log(str(learn_args), INFO=3)
@@ -328,11 +305,12 @@ class PicturedetectorDaemon(Daemon):
         #endif
     #enddef
 
-    def _createFilesWithImages(self, picture_set):
+    def _createFilesWithImages(self, neural_network_id, picture_set):
+        # @todo change loeading of fielpaths
         image_learn_file_suffix = self.config.caffe.image_learn_file_suffix
         image_validate_file_suffix = self.config.caffe.image_validate_file_suffix
-        learn_file = self._createImageFileName(picture_set, image_learn_file_suffix)
-        validate_file = self._createImageFileName(picture_set, image_validate_file_suffix)
+        learn_file = self._createImageFileName(neural_network_id, picture_set, image_learn_file_suffix)
+        validate_file = self._createImageFileName(neural_network_id, picture_set, image_validate_file_suffix)
         
         # Vytvoreni potrebnych adresaru dle konfigurace
         dir = os.path.dirname(learn_file)
@@ -394,8 +372,8 @@ class PicturedetectorDaemon(Daemon):
         return createdFiles
     #enddef
     
-    def _createImageFileName(self, picture_set, suffix = ""):
-        path = self.config.caffe.image_file_path
+    def _createImageFileName(self, neural_network_id, picture_set, suffix = ""):
+        path = self._getPath(neural_network_id, 'temp_dir')
         prefix = self.config.caffe.image_file_prefix
         filename = os.path.join(path, prefix + str(picture_set) + suffix)
         return filename
@@ -465,8 +443,9 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
 
-    def _learningStatus(self, neural_network_id):
-        log_path = self._getLearnLogPath(neural_network_id)
+    def _learningStatus(self, neural_network_id, log_name):
+        result = self.config.backend.proxy.neural_network.getLogPath(neural_network_id, log_name)
+        log_path = result['data']
         dbg.log(log_path, INFO=3)
         # Otevreni souboru s logem uceni
         file = open(log_path, 'r')
@@ -537,11 +516,6 @@ class PicturedetectorDaemon(Daemon):
         file.close()
         return results
     #enddef
-    
-    def _getLearnLogPath(self, neural_network_id):
-        log_path = os.path.join(self.config.caffe.learn_output_path, str(neural_network_id), self.config.caffe.learn_outout_prefix + time.strftime(self.config.caffe.learn_output_timestamp_format) + self.LOG_FILE_EXT)
-        return log_path
-    #enddef
 
     def _createClassifyMeanFile(self, source_meanfile, target_meanfile):
         # cilovy meanfile pro klasifikaci nebyl zadan, nebudeme ho vytvaret
@@ -571,6 +545,13 @@ class PicturedetectorDaemon(Daemon):
         #endif
         np.save(f, nparray)
         f.close()
+    #enddef
+    
+    def _getPath(self, neural_network_id, file_path_type):
+        result = self.config.backend.proxy.neural_network.getPath(neural_network_id, file_path_type)
+        path = result['data']
+
+        return path
     #enddef
 
 #endclass
