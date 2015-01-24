@@ -189,7 +189,7 @@ class PicturedetectorDaemon(Daemon):
         # Otevreni souboru pro zapis 
         learn_log_path = self._getPath(neural_network_id, 'new_log')
         
-        dir = os.path.dirname(path)
+        dir = os.path.dirname(learn_log_path)
         if not os.path.exists(dir):
             os.makedirs(dir)
         #endif
@@ -233,7 +233,7 @@ class PicturedetectorDaemon(Daemon):
         # Vygenerovani cesty pro mean file soubor pro klasifikaci
         mean_file_path = self._getPath(neural_network_id, 'mean_file')
         
-        dir = os.path.dirname(path)
+        dir = os.path.dirname(mean_file_path)
         if not os.path.exists(dir):
             os.makedirs(dir)
         #endif
@@ -267,7 +267,7 @@ class PicturedetectorDaemon(Daemon):
 
             dbg.log("Prefix souboru s ulozenym ucenim: " + solver_config.snapshot_prefix, INFO=3)
             
-            result = self.config.backend.proxy.neural_network.getSnapshotPath(neural_network_id, startIteration)
+            result = self.config.backend.proxy.neural_network.getSnapshotStatePath(neural_network_id, startIteration)
             saved_file_path = result['data']
             learn_args.append('-snapshot=' + saved_file_path)
         #endif

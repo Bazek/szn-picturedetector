@@ -43,6 +43,7 @@ class CaffeConfig(object):
         self.keep_networks = parser.get(section, 'KeepNetworks', 1)
         self.caffe_snapshot_const = parser.get(section, 'CaffeSnapshotConst', '')
         self.caffe_snapshot_ext = parser.get(section, 'CaffeSnapshotExt', '.caffemodel')
+        self.caffe_snapshot_state_ext = parser.get(section, 'CaffeSnapshotStateExt', '.solverstate')
     #enddef
 #endclass
 

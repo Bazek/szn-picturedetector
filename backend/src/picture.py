@@ -12,7 +12,7 @@ from rpc_backbone.decorators import rpcStatusDecorator, MySQL_master, MySQL_slav
 from lib.backend import Backend
 
 from hashlib import md5
-import os, shutil
+import shutil
 
 
 class PictureSetBackend(Backend):

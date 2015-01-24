@@ -115,11 +115,6 @@ class ClassifyBackend(Backend):
         return result
 
     #enddef
-    
-    def _load_image_from_binary(self, data, format = 'jpg', as_grey=False, return_metadate=False):
-        blob_data = _imread.imread_from_blob(data, format)
-        return convert(blob_data, 'float32')
-    #enddef
 
     @rpcStatusDecorator('classify.createClassifier', 'S:i')
     def createClassifier(self, neural_network_id):
@@ -155,7 +150,7 @@ class ClassifyBackend(Backend):
             gpu=gpu_mode
         )
         
-        net.set_phase_test()
+        #net.set_phase_test()
         
         if server.globals.config.caffe.init_networks_on_start and not neural_network_id in server.globals.neuralNetworks:
             if neural_network['keep_saved']:

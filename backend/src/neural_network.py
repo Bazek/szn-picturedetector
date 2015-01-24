@@ -13,6 +13,7 @@ from lib.backend import Backend
 
 import os.path
 import shutil
+import datetime
 
 class NeuralNetworkBackend(Backend):
     """
@@ -332,17 +333,18 @@ class NeuralNetworkBackend(Backend):
         #endif
         
         path = os.path.join(base_folder, str(neural_network_id), filename)
+        dbg.log("path: " + str(file_type) + " | " + path)
         return path
     #enddef
     
-    @rpcStatusDecorator('neural_network.getSnapshotPath', 'S:is')
+    @rpcStatusDecorator('neural_network.getSnapshotPath', 'S:ii')
     def getSnapshotPath(self, neural_network_id, iteration):
         """
-        Vrati cestu ke souboru s ulozenym stavem uceni s danou iteraci.
+        Vrati cestu ke souboru s ulozenou neuronovou siti s danou iteraci.
         Cesta je vygenerovana dle ID neuronove site.
 
         Signature:
-            neural_network.getPath(int neural_network_id, string file_type)
+            neural_network.getSnapshotPath(int neural_network_id, int iteration)
 
         @neural_network_id           Id Neuronove site
         @iteration                   Iterace uceni
@@ -359,6 +361,35 @@ class NeuralNetworkBackend(Backend):
         filename = self.config.neural_networks.snapshots_name
         caffe_const = self.config.caffe.caffe_snapshot_const
         extension = self.config.caffe.caffe_snapshot_ext
+        path = os.path.join(snapshot_dir, filename + caffe_const + str(iteration) + extension)
+        return path
+    #enddef
+    
+    @rpcStatusDecorator('neural_network.getSnapshotStatePath', 'S:ii')
+    #@todo duplicitni kod sjednotit spolecny kod getSnapshotPath a jen pridat jinou koncovku
+    def getSnapshotStatePath(self, neural_network_id, iteration):
+        """
+        Vrati cestu ke souboru s ulozenym stavem uceni s danou iteraci.
+        Cesta je vygenerovana dle ID neuronove site.
+
+        Signature:
+            neural_network.getSnapshotStatePath(int neural_network_id, int iteration)
+
+        @neural_network_id           Id Neuronove site
+        @iteration                   Iterace uceni
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                string data             Cesta k souboru
+            }
+        """
+
+        snapshot_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'snapshot_dir', bypass_rpc_status_decorator=True)
+        filename = self.config.neural_networks.snapshots_name
+        caffe_const = self.config.caffe.caffe_snapshot_const
+        extension = self.config.caffe.caffe_snapshot_state_ext
         path = os.path.join(snapshot_dir, filename + caffe_const + str(iteration) + extension)
         return path
     #enddef
@@ -447,6 +478,7 @@ class NeuralNetworkBackend(Backend):
     def test(self, id, picture_set_id):
         params = {'learning_set': 'testing'}
         pictures = server.globals.rpcObjects['picture'].listSimple(picture_set_id, params, bypass_rpc_status_decorator=True)
+        dbg.log("pictures: " + str(pictures), INFO=3)
         max_images = int(self.config.test.max_images)
         print_results = []
         start = 0
@@ -487,8 +519,10 @@ class NeuralNetworkBackend(Backend):
                 images_categories[hash] = subset
                 classify_images.append({'id': hash, 'path': hash})
             #endfor
-
+ 
+            dbg.log("classify loop", INFO=3)
             results = server.globals.rpcObjects['classify'].classify(id, classify_images, bypass_rpc_status_decorator=True)
+            dbg.log("results:" + str(results), INFO=3)
             failed_classify += len(pictures_block) - len(results)
             
             for hash in results:
