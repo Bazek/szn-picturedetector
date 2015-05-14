@@ -79,6 +79,15 @@ class PicturedetectorDaemon(Daemon):
     KILL_SIGNAL = signal.SIGINT
 
     def __learningInProgress(self):
+        """
+        Interní metoda Daemona, která zjišťuje jestli právě probíhá nějaké učení.
+        Metoda nevyžaduje žádné parametry a vrací hodnotu typu boolean konkrétně
+        hodnotu True pokud nějaké učení právě probíhá.
+        Metoda funguje tak, že pokud existuje soubor s uloženým PID, tak jej načte
+        a následně zkontroluje jestli v systému běží proces se zadaným PID. Pokud
+        neběží, tak vypíše do logu chybu, že daný proces neběžel a vrátí False,
+        čímž dá najevo, že žádné aktuální učení neprobíhá. 
+        """
         pid = self._readPid()
         if pid:
             # Pokud existuje soubor s PID, zkontrolujeme, ze dany proces bezi
@@ -86,8 +95,8 @@ class PicturedetectorDaemon(Daemon):
                 # Pokud proces bezi, vratime True
                 return True
             else:
-                # Pokud proces nebezi, vyhodime vyjimku: raise self.ProcessException("Ucici proces nebezi!")
-                raise self.ProcessException("Ucici proces nebezi!")
+                dbg.log("Ucici proces nebezi!", INFO=3)
+                #self.__stopLearningProcess()
         #endif
         
         # Pokud pidfile neexistuje, nebo je prazdny, vratime False
@@ -95,6 +104,12 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
     def __getNextNeuralNetwork(self):
+        """
+        Další interní metoda Daemona, která nevyžaduje žádné vstupní parametry.
+        Jedná se o metodu, která zastřešuje komunikaci s Backendem díky které 
+        zjišťuje jestli existuje ve frontě pro učení neuronových sítí záznam,
+        který je ve stavu waiting a tudíž čeká na naučení.
+        """
         # Precteme z databaze dalsi neuronovou sit pripravenou ve fronte k uceni
         result = self.config.backend.proxy.learning_queue.getNext()
         dbg.log(str(result), INFO=3)
@@ -102,6 +117,12 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
     def __startLearningProcess(self, queue_info):
+        """
+        Interní metoda, která zajišťuje započatí učení neuronové sítě na frameworku
+        Caffe. Vstupním parametrem
+        je pole, které obsahuje načtené informace z databáze o neuronové síti
+        a databázi fotografií na kterých se má učení provádět.
+        """
         dbg.log("Start learning network with id " + str(queue_info['neural_network_id']), INFO=3)
 
         pid = self._startCaffeLearning(queue_info['neural_network_id'], queue_info['picture_set_id'], queue_info['start_iteration'])
@@ -114,6 +135,12 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
     def __stopLearningProcess(self):
+        """
+        Zastavení učícího procesu. Tato interní metoda je zavolána pokud Daemon dostane
+        systémový signál SIGABRT. Po přijetí tohoto signálu dojde ke kontrole jestli
+        nějaké učení běží a pokud ano, tak bude následně ukončeno. V dalším cyklu
+        Daemona pak může započíst učení nové.
+        """
         dbg.log("STOP LEARNING!", INFO=3)
         
         # Zastavime ucici proces
@@ -143,11 +170,22 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
     def _postAbrt(self, signum, frame):
+        """
+        Metoda obsluhující systémový signál SIGABRT. Po jeho přijetí se provede kontrola
+        jestli běží učení a pokud ano, tak bude toto učení ukončeno, ale proces Daemona
+        bude běžet dále (nebude ukončen).
+        """
         # Dostali jsme signal SIGABRT, zastavime ucici proces
         self.__stopLearningProcess()
     #enddef
 
     def _readPid(self):
+        """
+        Pomocná metoda pro načtení PID procesu, který učí neuronovou síť.
+        Pokud soubor s PID neexistuje nebo je prázdný, protože žádné učení neprobíhá.
+        Tak bude vrácena hodnota False. V jiném případě bude vrácena číselná hodnota
+        PID procesu.
+        """
         pid_file = self.config.caffe.pid_file
         
         if os.path.isfile(pid_file):
@@ -163,6 +201,10 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
     def _savePid(self, pid):
+        """
+        Uložení PID do specifikovaného souboru v konfiguraci Daemona. Metoda očekává
+        parametr, který udává hodnotu PID, která se má uložit.
+        """
         pid_file = self.config.caffe.pid_file
         f = open(pid_file, 'w')
         if not f:
@@ -170,7 +212,17 @@ class PicturedetectorDaemon(Daemon):
         f.write(str(pid))
         f.close()
 
-    def _startCaffeLearning(self, neural_network_id, picture_set, startIteration = 0):
+    def _startCaffeLearning(self, neural_network_id, picture_set, start_iteration = 0):
+        """
+        Pomocná metoda, která zastřešuje započatí učení nad Frameworkem Caffe.
+        V této metodě se volají veškeré pomocné skripty, které jsou potřeba, aby
+        mohlo započít učení. Metoda očekává tři
+        parametry kterými jsou identifikátor neuronové sítě, identifikátor databáze
+        fotografií a volitelný parametr, který udává číslo iterace od kterého se má
+        učení spustit. Tento parametr se využívá, pokud již klasifikátor naučený byl
+        a chceme v učení pokračovat. Pokud se tento parametr nevyplní, tak se jako výchozí
+        hodnota nastaví hodnota 0, tudíž bude klasifikátor učen od začátku.
+        """
         learn_script = self.config.caffe.learn_script
         create_imagenet_script = self.config.caffe.create_imagenet_script
         create_mean_file_script = self.config.caffe.create_mean_file_script
@@ -203,11 +255,11 @@ class PicturedetectorDaemon(Daemon):
         # Vymazat stare uloznene obrazky pokud existuji
         if os.path.exists(layer_paths[util.TRAIN][util.SOURCE]):
             shutil.rmtree(layer_paths[util.TRAIN][util.SOURCE])
-        #endif
+        endif
         
         if os.path.exists(layer_paths[util.VALIDATE][util.SOURCE]):
             shutil.rmtree(layer_paths[util.VALIDATE][util.SOURCE])
-        #endif
+        endif
         
         # Vytvoreni argumentu pro spusteni skriptu pro vytvoreni databaze obrazku. Prvni parametr je cesta ke skriptu
         create_args = []
@@ -252,7 +304,7 @@ class PicturedetectorDaemon(Daemon):
         subprocess.call(create_mean_file_args)
         
         # Vytvoreni solver souboru pro uceni
-        #self._generateSolverFile(solver_config_path, network['id'])
+        self._generateSolverFile(solver_config_path, network['id'])
         
         # Vytvoreni argumentu pro spusteni skriptu pro uceni neuronove site. Prvni parametr je cesta ke skriptu
         learn_args = []
@@ -260,14 +312,14 @@ class PicturedetectorDaemon(Daemon):
         learn_args.append('train')
         learn_args.append('-solver=' + solver_config_path)
         
-        if startIteration:
+        if start_iteration:
             if not solver_config.snapshot_prefix:
                 raise self.ProcessException("Nepodarilo se precist prefix nazvu souboru s ulozenym ucenim (" + solver_config.snapshot_prefix + ")!")
             #endif
 
             dbg.log("Prefix souboru s ulozenym ucenim: " + solver_config.snapshot_prefix, INFO=3)
             
-            result = self.config.backend.proxy.neural_network.getSnapshotStatePath(neural_network_id, startIteration)
+            result = self.config.backend.proxy.neural_network.getSnapshotStatePath(neural_network_id, start_iteration)
             saved_file_path = result['data']
             learn_args.append('-snapshot=' + saved_file_path)
         #endif
@@ -281,14 +333,12 @@ class PicturedetectorDaemon(Daemon):
     #enddef
         
     def _processIteration(self):
-#        f = open("/tmp/learningStatus.csv", "w")
-#        f.write("^iteration^;^accuracy^;^loss^\n")
-#        values = self._learningStatus(6)
-#        for key in sorted(values):
-#            value = values[key]
-#            f.write('^'+str(key)+'^;^'+str(value['accuracy'])+'^;^'+str(value['loss'])+"^\n")
-#        f.close()
-        
+        """
+        Hlavní cyklus Daemona. Zde probíhá všechna logika Daemona, který zde
+        kontroluje jestli aktuálně běží učení a pokud ne, tak jestli existuje
+        neuronová síť, která čeká na učení.
+        """
+
         if self.__learningInProgress():
             dbg.log("Learning still in progress", INFO=2)
             return
@@ -306,6 +356,17 @@ class PicturedetectorDaemon(Daemon):
     #enddef
 
     def _createFilesWithImages(self, neural_network_id, picture_set):
+        """
+        Pomocná metoda, která obstarává vytvoření vstupních souborů pro framework Caffe,
+        který vyžaduje načtení specifického textového souboru z kterého bude poté
+        vytvořena LMDB databáze fotografií, které umí Caffe zpracovat. Tento vstupní soubor
+        má následující formát. Každá fotografie je vypsán na zvláštním řádku, kde na začátku
+        řádku se nachází cesta k fotografii, poté následuje znak mezery a za ní následuje
+        identifikátor kategorie, do které fotografie patří. Pro úspěšné učení klasifikátoru
+        je potřeba vytvořit tyto soubory dva a to konkrétně pro fotografie ze sekcí
+        learning a validation. Parametry metody jsou dva a to identifikátor
+        neuronové sítě a identifikátor databáze fotografií.
+        """
         # @todo change loeading of fielpaths
         image_learn_file_suffix = self.config.caffe.image_learn_file_suffix
         image_validate_file_suffix = self.config.caffe.image_validate_file_suffix
@@ -373,6 +434,16 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
     def _createImageFileName(self, neural_network_id, picture_set, suffix = ""):
+        """
+        Další pomocná metoda, která zastřešuje komunikaci s Backendem. Tato metoda komunikuje
+        s Backendem a zjišťuje, cestu k adresáři pro dočasné soubory dané neuronové sítě,
+        kde může vytvořit soubory s vygenerovanými cestami k fotografiím.
+        Tyto soubory framework Caffe potřebuje k učení klasifikátorů. Metoda má tři vstupní
+        parametry, kde první parametr je identifikátor neuronové sítě, druhý parametr
+        je identifikátor databáze fotografií a třetím parametrem je přípona, která se má
+        souborům nastavit. Třetí parametr je zde proto, aby bylo možné metodu využít v kódu
+        na více místech.
+        """
         path = self._getPath(neural_network_id, 'temp_dir')
         prefix = self.config.caffe.image_file_prefix
         filename = os.path.join(path, prefix + str(picture_set) + suffix)
@@ -381,6 +452,18 @@ class PicturedetectorDaemon(Daemon):
 
     #todo DELETE (NOT USED)
     def _generateSolverFile(self, filepath, neural_network_id):
+        """
+        Metoda určena pro generování konfigurace solveru, která zajistí doplnění
+        hodnot s cestami k souborům v solver konfiguraci. Administrátor by takto nemusel
+        doplňovat ručně konkrétní správné hodnoty a byly by cesty za něj doplněny automaticky.
+        Nevýhodou je, že administrátor nemůže ovlivnit jaká cesta se zde vloží a nemá příležitost
+        nastavit si libovolnou cestu například k datům z jiné neuronové sítě, protože budou vždy
+        automaticky přepsány. Proto se tato metoda v aktuálním kódu nevyužívá a společnost
+        Seznam.cz rozhodla, že pro lepší kontrolu nad obsahem konfigurace solveru
+        nebudou tyto cesty automaticky generovány. Metoda obsahuje dva vstupní parametry
+        a to cestu, kde se má soubor pro konfigurace solveru uložit a identifikátor
+        neuronové sítě.
+        """
         # Cteni konfigurace solveru z databaze
         result = self.config.backend.proxy.solver_config.get(neural_network_id)
         config = result['data']
@@ -444,6 +527,13 @@ class PicturedetectorDaemon(Daemon):
     
 
     def _learningStatus(self, neural_network_id, log_name):
+        """
+        Pro vypsání stavu učení slouží právě tato metoda, která jako parametry očekává
+        identifikátor modelu o kterém má vypsat statistiku učení a databázi fotografií
+        nad kterou se učení provádělo. Návratovou hodnotou je pole s daty, které
+        bude možné v administračním rozhraním vykreslit do podoby grafu nebo případné
+        jiné vizualizace.
+        """
         result = self.config.backend.proxy.neural_network.getLogPath(neural_network_id, log_name)
         log_path = result['data']
         dbg.log(log_path, INFO=3)
@@ -518,6 +608,13 @@ class PicturedetectorDaemon(Daemon):
     #enddef
 
     def _createClassifyMeanFile(self, source_meanfile, target_meanfile):
+        """
+        Jelikož framework Caffe vyžaduje jiný formát mean file souboru při učení
+        a při klasifikaci, tak tato metody vytváří mean file soubor v numpy numpy formátu,
+        který se načítá při vytváření klasifikátoru a zajišťuje rychlejší klasifikaci.
+        Vstupními parametry metody je cesta k trénovacímu mean file souboru a cesta, kde
+        se má uložit výsledný mean file v numpy formátu.
+        """
         # cilovy meanfile pro klasifikaci nebyl zadan, nebudeme ho vytvaret
         if not target_meanfile:
             return
@@ -548,6 +645,12 @@ class PicturedetectorDaemon(Daemon):
     #enddef
     
     def _getPath(self, neural_network_id, file_path_type):
+        """
+        Pomocná metoda, která zastřešuje komunikaci s Backendem. Zde z Backendu získáváme
+        informaci o cestě ke zvolenému typu souboru pro danou neuronovou síť.
+        Vstupní parametry jsou dva a jsou to identifikátor neuronové sítě a typ
+        souboru jehož cestu chceme získat.
+        """
         result = self.config.backend.proxy.neural_network.getPath(neural_network_id, file_path_type)
         path = result['data']
 

@@ -14,6 +14,7 @@ STATUS__neural_network_add_failed               Nepodařilo se vytvořit novou n
 STATUS__neural_network_edit_ok                  Neuronová síť byla úspěšně uložena
 STATUS__neural_network_delete_failed            Nepodařilo se smazat neuronovou síť
 STATUS__neural_network_delete_ok                Neuronová síť byla smazána
+STATUS__neural_network_log_error                Chyba při načítání logů učení
 
 STATUS__learning_queue_not_found                Záznam ve frontě učení nebyl nalezen
 STATUS__learning_queue_edit_failed              Editace záznamu ve frontě učení nebyla úspěšná

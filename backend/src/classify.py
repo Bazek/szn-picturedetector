@@ -29,7 +29,7 @@ class ClassifyBackend(Backend):
         Funkce pro zpracovani obrazku
 
         Signature:
-            neural_network.classify(int neural_network_id, struct images)
+            classify.classify(int neural_network_id, struct images)
 
         @param {
             int neuralNetworkId         ID neuronove site
@@ -118,6 +118,26 @@ class ClassifyBackend(Backend):
 
     @rpcStatusDecorator('classify.createClassifier', 'S:i')
     def createClassifier(self, neural_network_id):
+        """
+        Tato metoda má na starosti vytváření klasifikátoru. Jako parametr očekává
+        identifikátor neuronové sítě z které se má klasifikátor vytvořit. Metoda
+        si poté načte potřebné parametry z databáze a vytvoří příslušný klasifikátor,
+        který následně vrátí. Jedná se o pomocnou metodu, kterou využívá pouze Backend.
+        
+        Signature:
+            classify.createClassifier(int neural_network_id)
+
+        @param {
+            int neural_network_id       ID neuronove site
+        }
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                object data             Nacteny klasifikator
+            }
+        """
         neural_network = server.globals.rpcObjects['neural_network'].get(neural_network_id, bypass_rpc_status_decorator=True)
         model_config = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'model', bypass_rpc_status_decorator=True)
         
@@ -128,7 +148,7 @@ class ClassifyBackend(Backend):
         mean_file_path = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'mean_file', bypass_rpc_status_decorator=True)
 
         dbg.log("Classifier file paths:\nModel config: " + model_config + "\nSnapshot: " + snapshot_path + "\nMeanFile:" + mean_file_path, INFO=3)
-        # if classifier meanfile path is set, read the mean file
+        # Pokud je nastavena cesta mean file souboru, tak jej precti
         mean_file = None
         if mean_file_path:
             mean_file = numpy.load(mean_file_path)
@@ -138,8 +158,9 @@ class ClassifyBackend(Backend):
             gpu_mode = self.config.caffe.gpu_mode
         else:
             gpu_mode = neural_network['gpu']
+            caffe.set_mode_gpu()
         #endif
-
+        
         # create caffe classicifer
         net = caffe.Classifier(
             model_config,
@@ -147,10 +168,7 @@ class ClassifyBackend(Backend):
             mean=mean_file,
             channel_swap=(2,1,0),
             raw_scale=255,
-            gpu=gpu_mode
         )
-        
-        #net.set_phase_test()
         
         if server.globals.config.caffe.init_networks_on_start and not neural_network_id in server.globals.neuralNetworks:
             if neural_network['keep_saved']:

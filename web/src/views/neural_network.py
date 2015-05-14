@@ -81,3 +81,49 @@ def neural_network__delete_GET(id):
     #endif
     return redirect('/neural-network?status=0&message=neural_network_delete_ok')
 #enddef
+
+@app.route("/neural-network/learn-stat/<int:id>", methods=["GET"], defaults={'log_name': None})
+@app.route("/neural-network/learn-stat/<int:id>/<string:log_name>", methods=["POST"])
+def neural_network__learn_stat_GET(id, log_name):
+    neural_network = {}
+    if id:
+        result = conf.backend.proxy.neural_network.getLogs(id)
+        if result.get("status") != 200:
+            return redirect('/neural-network?status=1&message=neural_network_not_found')
+        #endif
+        logs = result.get("data")
+    #endif
+    
+    if log_name:
+        result = conf.backend.proxy.neural_network.learningStatus(id, log_name)
+        
+        if result.get("status") != 200:
+            return redirect('/neural-network?status=1&message=neural_network_log_error')
+        #endif
+        
+        data = result.get("data")
+        dbg.log("data >>>" + str(data), INFO=3)
+    #endif
+    
+    return render_teng("neural-network_learn-stat.html", log_list=logs, learn_data=data)
+#enddef
+
+@app.route("/neural-network/learn-stat/<int:id>", methods=["POST"])
+def neural_network__learn_stat_POST(id):
+    neural_network = {}
+    if id:
+        result = conf.backend.proxy.neural_network.getLogs(id)
+        if result.get("status") != 200:
+            return redirect('/neural-network?status=1&message=neural_network_not_found')
+        #endif
+        logs = result.get("data")
+    #endif
+    
+    log_name = request.form.get("selected")
+    
+    if log_name: 
+        return redirect('/neural-network/learn-stat/%d/%s'%id%log_name)
+    #endif
+    
+    return render_teng("neural-network_learn-stat.html?status=1&message=neural_network_log_error", log_list=logs)
+#enddef

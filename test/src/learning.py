@@ -34,8 +34,8 @@ class LearningConfig(Config):
     #endclass
 
 
-    def __init__(self, configFile):
-        super(LearningConfig, self).__init__(configFile)
+    def __init__(self, config_file):
+        super(LearningConfig, self).__init__(config_file)
         self.caffe = self.CaffeConfig(self.parser, "caffe")
     #enddef
 
@@ -45,8 +45,13 @@ class LearningConfig(Config):
 
 
 class LearningTest(object):
-    """ Learning test """
-    
+    """
+    Metoda pro provedení časového měření na modelech neuronových sítí, které nalezne
+    v pevně dané složce nastavené v konfiguraci. Provádí se dva testy. První test
+    je spuštění Caffe skriptu, který je určen na časový test učení. Druhý test
+    je klasické spuštění učení jako to dělá Daemon. Počet iterací učení, které se mají
+    provést je uveden v konfiguraci.
+    """
     # koncovka log souboru
     LOG_FILE_EXT = '.log'
     

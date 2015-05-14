@@ -159,6 +159,7 @@ class NeuralNetworkBackend(Backend):
             directory_path = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, directory, bypass_rpc_status_decorator=True)
             if not os.path.exists(directory_path):
                 os.makedirs(directory_path)
+                os.chmod( directory_path , 0755)
             #endif
         #endfor
 
@@ -422,6 +423,27 @@ class NeuralNetworkBackend(Backend):
     
     @rpcStatusDecorator('neural_network.getLogs', 'S:i')
     def getLogs(self, neural_network_id):
+        """
+        Metoda určena pro získání všech názvů logů učení, které máme dostupné pro danou
+        neuronovou síť, která je určena svým identifikátorem. V administračním rozhraní
+        je zajištěno, že uživatel může vybírat pouze z těchto názvu logů a proto se nemusí
+        provádět extra kontrola před voláním metody getLogPath().
+        
+        Signature:
+            neural_network.getLogs(int neural_network_id)
+            
+        @neural_network_id           Id Neuronove site
+        
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                array data {
+                    string filename     cesta k souboru s logem
+                }
+            }
+        """
+        
         log_dir = server.globals.rpcObjects['neural_network'].getPath(neural_network_id, 'log_dir', bypass_rpc_status_decorator=True)
         logs = self._getFiles(log_dir)
         
@@ -433,8 +455,29 @@ class NeuralNetworkBackend(Backend):
         return paths
     #enddef
 
-    @rpcStatusDecorator('neural_network.getFileContent', 'S:i')
+    @rpcStatusDecorator('neural_network.getFileContent', 'S:is')
     def getFileContent(self, id, file_type):
+        """
+        Pomocná metoda pro práci se soubory, která dokáže přečíst obsah souboru. Tato metoda
+        se využívá v administračním rozhraní, kdy ve formuláři při editaci neuronové sítě
+        je umožněno upravovat obsah konfiguračních souborů dané neuronové sítě. Díky
+        této metodě se konfigurace načtou do formuláře a po uložení budou úspěšně aktualizovány.
+        Metoda jako parametry očekává identifikátor neuronové sítě a typ souboru, který
+        má být načten.
+        
+        Signature:
+            neural_network.getFileContent(int id, string file_type)
+            
+        @id             Id Neuronove site
+        @file_type      typ souboru
+        
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                string data             obsah souboru
+            }
+        """
         file_path = server.globals.rpcObjects['neural_network'].getPath(id, file_type, bypass_rpc_status_decorator=True)
         file = open(file_path, 'r')
         if not file:
@@ -443,8 +486,29 @@ class NeuralNetworkBackend(Backend):
         return file_content;
     #enddef
 
-    @rpcStatusDecorator('neural_network.saveFile', 'S:s')
+    @rpcStatusDecorator('neural_network.saveFile', 'S:iss')
     def saveFile(self, id, file_type, file_content):
+        """
+        Další pomocná metoda pro práci se soubory, která má na starosti uložení souboru. Opět se
+        tato metoda využívá v administračním rozhraní, kdy po uložení editačního formuláře pro úpravu
+        neuronové sítě, je potřeba uložit obsahy konfiguračních souborů. Metoda očekává
+        jako parametry identifikátor neuronové sítě, typ souboru který je ukládán a obsah
+        souboru ve formě řetězce, který se má do daného souboru uložit.
+        
+        Signature:
+            neural_network.saveFile(int id, string file_type, string file_content)
+            
+        @id             Id Neuronove site
+        @file_type      typ souboru
+        @file_content   obsah souboru
+        
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                bool data               true pokud se podarilo ulozit
+            }
+        """
         file_path = server.globals.rpcObjects['neural_network'].getPath(id, file_type, bypass_rpc_status_decorator=True)
         
         # Vytvoreni potrebnych adresaru
@@ -463,6 +527,26 @@ class NeuralNetworkBackend(Backend):
 
     @rpcStatusDecorator('neural_network.deleteFile', 'S:i')
     def deleteFile(self, id, file_type):
+        """
+        Poslední pomocná metoda pro práci se soubory zajišťuje smazání souboru daného typu, který
+        je určen řetězcem a to pro konkrétní neuronovou síť, která je specifikovaná pomocí
+        identifikátoru neuronové sítě. Tato metoda se využívá při mazání neuronové sítě, kdy se
+        zároveň mažou všechny soubory k dané neuronové síti včetně uložených klasifikátorů
+        a dočasných souborů.
+        
+        Signature:
+            neural_network.deleteFile(int id, string file_type)
+            
+        @id             Id Neuronove site
+        @file_type      typ souboru
+        
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                bool data               true pokud se podarilo ulozit
+            }
+        """
         file_path = server.globals.rpcObjects['neural_network'].getPath(id, file_type, bypass_rpc_status_decorator=True)
         if os.path.isfile(file_path):
             os.remove(file_path)
@@ -476,6 +560,30 @@ class NeuralNetworkBackend(Backend):
     
     @rpcStatusDecorator('neural_network.test', 'S:ii')
     def test(self, id, picture_set_id):
+        """
+        Metoda, která je schopna provést testování přesnosti neuronové sítě. Očekávané
+        parametry metody jsou identifikátor neuronové sítě a identifikátor databáze
+        fotografií, která se má použit pro testování. Zadaná databáze fotografií musí
+        mít nějaké přiřazené fotografie do sekce testing, protože z této sekce
+        se budou fotografie načítat. Je možné model testovat i na jiné databázi fotografií
+        než na které byl naučen. To se může hodit, pokud chceme otestovat vhodnost naučeného
+        klasifikátoru pro jinou úlohu nebo pokud chceme mít více testovacích databází fotografií
+        pro daný klasifikátor. Návratová hodnota metody je pole ve kterém je po řádcích uložen log
+        obsahující výsledky testování.
+        
+        Signature:
+            neural_network.test(int id, int picture_set_id)
+            
+        @id             Id Neuronove site
+        @picture_set_id Id sady obrazku
+        
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                array data              pole s vygenerovanymi radky textu
+            }
+        """
         params = {'learning_set': 'testing'}
         pictures = server.globals.rpcObjects['picture'].listSimple(picture_set_id, params, bypass_rpc_status_decorator=True)
         dbg.log("pictures: " + str(pictures), INFO=3)
@@ -611,8 +719,42 @@ class NeuralNetworkBackend(Backend):
         return print_results
     #enddef
 
-    @rpcStatusDecorator('neural_network.learningStatus', 'S:s')
+    @rpcStatusDecorator('neural_network.learningStatus', 'S:is')
     def learningStatus(self, neural_network_id, learn_log):
+        """
+        Účelem této metody je získat statistiku učení neuronové sítě pro daný log učení.
+        Parametry metody jsou identifikátor neuronové sítě a název logu, který se má zpracovat.
+        Pokud log učení neexistuje, tak tato metoda vyvolá vyjímku. Díky využití metody getLogs()
+        pro zobrazení seznamu logů v administračním rozhraní je zajištěno, že log skutečně existuje.
+        Klíčem v poli je číslo iterace, které se má v grafu zobrazit na ose x. Dále v poli pod tímto
+        klíčem jsou tři prvky, kde prvek pod klíčem accuracy obsahuje hodnotu y, která udává přesnost
+        klasifikátoru nad učícími daty. Druhý prvek je pod klíčem loss a obsahuje hodnotu y, která
+        udává velikost chyby nad validačními daty. Třetí prvek pod klíčem snapshot obsahuje boolean
+        hodnotu, která nám sděluje jestli se v dané iteraci ukládal snapshot či nikoliv. Tato informace
+        je vhodná pokud v konfiguraci solveru jsou nastaveny rozdílné hodnoty parametrů
+        test_interval a snapshot což způsobí, že ukládání probíhá jindy než validace
+        klasifikátoru. Jelikož se tyto hodnoty čtou z logu, tak může nastat případ, že metoda bude
+        vracet, že se klasifikátor v dané iteraci uložil, ale přitom klasifikátor na disku neexistuje.
+        To může nastat pokud administrátor ručně smaže daný soubor z disku. Tato informace sděluje, jestli
+        byl stav klasifikátoru uložen, nikoliv jestli aktuálně existuje.
+        
+        Signature:
+            neural_network.learningStatus(int neural_network_id, string learn_log)
+            
+        @neural_network_id              Id Neuronove site
+        @learn_log Id                   nazev logu
+        
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                array data {
+                    float accuracy      presnost na ucicich datech
+                    float loss          chyba na testovacich datech
+                    bool snapshot       priznak ze se provedlo ulozeni klasifikatoru pro tuto iteraci
+                }
+            }
+        """
         log_path = server.globals.rpcObjects['neural_network'].getLogPath(neural_network_id, learn_log, bypass_rpc_status_decorator=True)
         dbg.log(log_path, INFO=3)
         # Otevreni souboru s logem uceni
@@ -686,6 +828,12 @@ class NeuralNetworkBackend(Backend):
     #enddef
     
     def _getStatus(self, neural_network_data):
+        """
+        Interní metoda pro třídu NeuralNetworkBackend, která vrátí řetězec statusu
+        pro neuronovou síť, která je specifikována identifikátorem předaným pomocí parametru
+        metody. Tento status se zobrazuje v administračním rozhraní na stránce přehledu
+        neuronových sítí.
+        """
         status = neural_network_data['status']
         if not neural_network_data['status']:
             if neural_network_data['pretrained_iteration']:
@@ -699,6 +847,10 @@ class NeuralNetworkBackend(Backend):
     #enddef
     
     def _getFiles(self, folder):
+        """
+        Interní metoda třídy NeuralNetworkBackend, která vrací pole s názvy souborů, které
+        se nacházejí v adresáři, který je určen parametrem metody.
+        """
         files = []
         for file in os.listdir(folder):
             if file.endswith(self.config.neural_networks.log_extension):

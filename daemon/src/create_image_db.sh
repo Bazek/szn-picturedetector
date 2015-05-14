@@ -2,7 +2,7 @@
 # Create the imagenet leveldb inputs
 # N.B. set the path to the imagenet train + val data dirs
 
-TOOLS=/usr/tools
+TOOLS=/home/hol/caffe/build/tools
 
 TRAIN_DATA=$1
 VAL_DATA=$2

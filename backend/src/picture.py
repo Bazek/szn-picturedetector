@@ -21,6 +21,15 @@ class PictureSetBackend(Backend):
     """
 
     def _add_learning_subsets(self, picture_sets):
+        """
+        Pomocná interní metoda, která očekává jako vstupní parametr pole s identifikátory
+        databází fotografií a vrací pole, kde jsou přidány informace kolik je fotografií
+        v jednotlivých kategoriích a sekcích v rámci vybraných databází fotografií.
+        Tato metoda je využita v administračním rozhraní, kde na stránce s databázemi
+        fotografií zobrazuje informace kolik fotografií je v daných kategoriích a sekcích.
+        Administrátor na základě této informace může doplňovat fotografie do sekcí, které
+        obsahují málo fotografií.
+        """
         if type(picture_sets) not in (list, tuple, set):
             picture_sets = [ picture_sets ]
         #endif
@@ -287,6 +296,26 @@ class PictureBackend(Backend):
     @MySQL_master
     def save(self, picture_set_id, learning_set, learning_subset, binary):
         """
+        Tato metoda umožňuje nahrát novou fotografii do databáze fotografií.
+        Metoda očekává čtyři parametry, kdy první tři parametry jsou identifikátory
+        a čtvrtý parametr jsou binární data fotografie, která je nahrána z administračního
+        rozhraní. První parametr je identifikátor databáze fotografií, druhý identifikuje
+        kategorii do které fotografie patří a třetí identifikátor slouží pro upřesnění
+        sekce ve které má být fotografie použita. Výstupem metody je pole, které obsahuje
+        dvě hodnoty. Hodnota pod klíčem id udává identifikátor fotografie a
+        hodnota pod klíčem hash udává unikátní hash v rámci systému.
+        
+        Signature:
+            picture_set.delete(int picture_set_id)
+
+        @picture_set_id             Id sady
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                bool data               Uspesne smazano
+            }
         """
 
         if learning_set not in self.config.pictures.LEARNING_SETS:
@@ -326,6 +355,34 @@ class PictureBackend(Backend):
     @MySQL_slave
     def list(self, picture_set_id, params={}):
         """
+        Metoda pro vypsání seznamu fotografií včetně jejich informací o příslušných kategorií
+        do kterých spadají. Očekávány je jeden povinný parametr a to identifikátor
+        databáze fotografií pro kterou se mají fotografie získat a jeden volitelný parametr
+        typu pole, který obsahuje filtr, který je možné nastavit dle potřeby. Hodnoty ve filtru
+        jsou nastaveny tak, že název sloupce podle kterého se má filtrovat je uložen jako klíč
+        v poli a hodnota pod tímto klíčem udává hodnotu, dle které se má filtr provést.
+        Filtrovat je možné dle sloupců learning_set, learning_subset_id
+        a learning_subset. Návratová hodnota je typu pole, kde jsou uloženy
+        všechny informace z databázových tabulek picture a learning_subset.
+        
+        Signature:
+            picture_set.list(int picture_set_id, struct params)
+
+        @picture_set_id             Id sady
+        @params                     Filtrovaci parametry
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                array data {
+                    int id                  ID obrazku
+                    int picture_set_id      ID sady obrazku
+                    string learning_set     Nazev kategorie obrazku
+                    string learning_subset  Nazev sekce obrazku
+                    string hash             Hash obrazku
+                }
+            }
         """
 
         # Kontrola parametru
@@ -364,6 +421,25 @@ class PictureBackend(Backend):
         """
         Nevypisuje nazvy subsetu, ale jejich ID.
         Protoze pri generovani obrazku pro uceni potrebujeme ciselne ID hodnoty (ne textove).
+        
+        Signature:
+            picture_set.listSimple(int picture_set_id, struct params)
+
+        @picture_set_id             Id sady
+        @params                     Filtrovaci parametry
+
+        Returns:
+            struct {
+                int status              200 = OK
+                string statusMessage    Textovy popis stavu
+                array data {
+                    int id                  ID obrazku
+                    int picture_set_id      ID sady obrazku
+                    string learning_set     Nazev kategorie obrazku
+                    int learning_subset_id  ID subsetu
+                    string hash             Hash obrazku
+                }
+            }
         """
 
         # Kontrola parametru

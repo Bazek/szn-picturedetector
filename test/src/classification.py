@@ -27,8 +27,8 @@ class ClassificationConfig(Config):
     #endclass
 
 
-    def __init__(self, configFile):
-        super(ClassificationConfig, self).__init__(configFile)
+    def __init__(self, config_file):
+        super(ClassificationConfig, self).__init__(config_file)
         self.backend = ConfigBox(self.parser, "backend")
         self.caffe = self.CaffeConfig(self.parser, "caffe")
     #enddef
@@ -47,6 +47,13 @@ class ClassificationTest(object):
 
 
     def process(self):
+        """
+        Provede časový test na všech neuronových sítích, které se nacházejí v databázi.
+        Test rychlosti klasifikace se provede pro 1, 2, 5, 10 a 20 fotografií.
+        Fotografie nejsou načteny z databáze, ale ze složky, která je definovaná
+        v konfiguraci. Je potřebné dodržet, aby složka obsahovala dostatečný počet
+        fotografií, tedy v tomto případně minimálně 20 fotografií.
+        """
         images = []
         for dirname, dirnames, filenames in os.walk(self.config.caffe.image_path):
             for filename in filenames:

@@ -34,7 +34,7 @@ def _readProtoFile(filepath, parser_object):
     file = open(filepath, "r")
     if not file:
         raise Exception("Soubor s konfiguraci neexistuje (" + filepath + ")!")
-
+    
     text_format.Merge(str(file.read()), parser_object)
     file.close()
     return parser_object
@@ -42,20 +42,21 @@ def _readProtoFile(filepath, parser_object):
 
 def parseLayerPaths(proto):
     results = {}
-
+    
     results[TRAIN] = {
         SOURCE: '',
         MEAN_FILE: ''
     }
-
+    
     results[VALIDATE] = {
         SOURCE: '',
         MEAN_FILE: ''
     }
-
-    for layer in proto.layers:
-        if layer.type == caffe_pb2.LayerParameter.LayerType.Value('DATA'):
+    
+    for layer in proto.layer:
+        if layer.type.lower() == 'data':
             include_name = False
+            
             for include in layer.include:
                 if include.phase == caffe_pb2.Phase.Value('TRAIN'):
                     include_name = TRAIN
@@ -63,28 +64,28 @@ def parseLayerPaths(proto):
                     include_name = VALIDATE
                 #endif
             #endfor
-
+            
             if not include_name or (include_name == TRAIN):
                 if layer.data_param.source:
                     results[TRAIN][SOURCE] = layer.data_param.source
                 #endif
-
+                
                 if layer.transform_param.mean_file:
                     results[TRAIN][MEAN_FILE] = layer.transform_param.mean_file
                 #endif
             #endif
-
+            
             if not include_name or (include_name == VALIDATE):
                 if layer.data_param.source:
                     results[VALIDATE][SOURCE] = layer.data_param.source
                 #endif
-
+                
                 if layer.transform_param.mean_file:
                     results[VALIDATE][MEAN_FILE] = layer.transform_param.mean_file
                 #endif
             #endif
         #endif
     #endfor
-
+    
     return results
 #enddef
